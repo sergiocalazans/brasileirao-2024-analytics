@@ -1,140 +1,117 @@
-# Brasileirão Analytics: PjBL2, Tabela de Classificação em Haskell
+# Brasileirão Analytics — Tabela de Classificação em Haskell
 
-Este programa calcula a tabela de classificação de um campeonato de futebol a partir dos
-resultados das partidas, recebidos como texto. Ele responde perguntas como *"quem lidera depois
-da 3ª rodada?"* e *"como um empate em pontos é desempatado?"*, mostra estatísticas do campeonato e
-rejeita entradas com erros de digitação com uma mensagem útil, sem nunca encerrar com exceção.
+O Brasileirão Analytics é um projeto da disciplina de Programação Lógica e Funcional. O programa recebe os resultados de partidas de futebol, calcula a classificação dos times e apresenta estatísticas do campeonato.
 
-> **Ambiente validado nesta revisão:** GHC **9.10.3** no Ubuntu **26.04.1 LTS**, via WSL 2.
-> O playground (play.haskell.org) **não** foi usado. O projeto depende só da biblioteca `base`.
+O trabalho foi dividido em três camadas: tipos e dados, cálculos da classificação e leitura com validação. Além do campeonato de teste, utilizamos os resultados da Série A de 2024 para conferir os cálculos com uma tabela real.
 
 ## Integrantes
 
-| Nome | GitHub |
-|---|---|
-| Sérgio | [sergiocalazans](https://github.com/sergiocalazans) |
-| Glaucia | [Glaucia05](https://github.com/Glaucia05) |
-| Nicolly | [ly-ubimyy](https://github.com/ly-ubimyy) |
-| Gustavo | [GMizuguti](https://github.com/GMizuguti) |
+| Integrante | GitHub                                              |
+| ---------- | --------------------------------------------------- |
+| Sérgio     | [sergiocalazans](https://github.com/sergiocalazans) |
+| Glaucia    | [Glaucia05](https://github.com/Glaucia05)           |
+| Nicolly    | [ly-ubimyy](https://github.com/ly-ubimyy)           |
+| Gustavo    | [GMizuguti](https://github.com/GMizuguti)           |
 
-## Estrutura do projeto
+## Organização dos arquivos
 
 ```text
 projeto/
 ├── src/
-│   ├── Tipos.hs          Camada 1: tipos algébricos e consultas básicas
-│   ├── Classificacao.hs  Camada 2: classificação e estatísticas (ordem superior)
-│   ├── Leitura.hs        Camada 3: leitura com Maybe/Either, validação e formatação
-│   ├── Dados.hs          campeonato de teste e entradas de exemplo, como String
-│   └── Main.hs           demonstração das três camadas (o único ponto com IO)
+│   ├── Tipos.hs
+│   ├── Classificacao.hs
+│   ├── Leitura.hs
+│   ├── Dados.hs
+│   └── Main.hs
 ├── tests/
-│   └── Testes.hs         119 testes com resultado esperado
+│   └── Testes.hs
 ├── data/
-│   ├── brasileirao-2024.csv  380 partidas reais da Série A 2024
-│   ├── campeonato-teste.csv  campeonato controlado exigido pela issue #03
-│   └── teste.txt             arquivo original da equipe, preservado
+│   ├── brasileirao-2024.csv
+│   ├── campeonato-teste.csv
+│   └── teste.txt
 ├── docs/
-│   ├── decisoes.md       decisões de modelagem e limitações conhecidas
-│   └── contribuicao.md   convenções de branches, commits e pull requests
+│   ├── decisoes.md
+│   └── contribuicao.md
 └── README.md
 ```
 
-As dependências entre os módulos seguem as camadas:
-`Tipos` ← `Classificacao` ← `Leitura` ← `Main`. `Dados` é independente (só contém textos).
+Cada módulo tem uma responsabilidade:
+
+| Arquivo            | Responsabilidade                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------- |
+| `Tipos.hs`         | Define os tipos `Time`, `Resultado`, `Partida` e `Linha`, além das consultas básicas sobre as partidas. |
+| `Classificacao.hs` | Calcula pontos, classificação, desempates e estatísticas usando funções de ordem superior.              |
+| `Leitura.hs`       | Lê e valida os dados, informa erros e formata a tabela para exibição.                                   |
+| `Dados.hs`         | Guarda o campeonato de teste e exemplos de entradas válidas e inválidas.                                |
+| `Main.hs`          | Reúne as funcionalidades e apresenta a demonstração do projeto.                                         |
+| `Testes.hs`        | Executa os testes das três camadas e dos arquivos CSV.                                                  |
 
 ## Como executar
 
-Todos os comandos devem ser executados **na raiz do projeto**. A opção `-isrc` diz ao GHC onde
-estão os módulos.
+Utilizamos o **GHC 9.10.3**, com validação no **Ubuntu 26.04.1 LTS pelo WSL 2**. O projeto usa apenas a biblioteca padrão `base`.
 
-### 1. Sem compilar (`runghc`)
+Execute os comandos na raiz do repositório.
 
-```powershell
+### Execução direta
+
+```bash
 runghc -isrc src/Main.hs
 ```
 
-```powershell
+Esse comando utiliza o campeonato definido em `Dados.hs`. Para ler um arquivo, informe o caminho:
+
+```bash
 runghc -isrc src/Main.hs data/campeonato-teste.csv
+runghc -isrc src/Main.hs data/brasileirao-2024.csv
 ```
 
-```powershell
+Os testes também podem ser executados diretamente:
+
+```bash
 runghc -isrc tests/Testes.hs
 ```
 
-- O primeiro comando usa o campeonato embutido em `src/Dados.hs`.
-- O segundo lê os dados de um arquivo. Pode ser qualquer arquivo no formato abaixo. Se ele não
-  existir, o programa avisa e continua normalmente.
-- O terceiro roda os testes. O resultado esperado termina com `119 de 119 testes passaram.`, e o
-  código de saída é 1 se algum teste falhar.
+### Compilação
 
-Para consultar os resultados reais, use `runghc -isrc src/Main.hs data/brasileirao-2024.csv`.
-
-### 2. No GHCi
-
-```powershell
-ghci -isrc src/Main.hs
-```
-
-```text
-ghci> :main                        -- demonstração com os dados embutidos
-ghci> :main data/teste.txt         -- demonstração lendo o arquivo
-ghci> :module + Tipos Classificacao Leitura Dados
-ghci> fmap (map time . classificacao . ateRodada 3) (lerCampeonato dadosCampeonato)
-Right ["Palmeiras","Botafogo","Fortaleza","Internacional","Flamengo","Cruzeiro"]
-ghci> todosOsErros "1;Bahia;dois;0;Vasco"
-[NumeroInvalido 1 "dois"]
-ghci> putStr (either mensagemErro tabelaFormatada (classificacao <$> lerCampeonato dadosCampeonato))
-```
-
-Para rodar os testes no GHCi, use `ghci -isrc tests/Testes.hs` e depois `:main`.
-
-### 3. Compilando (com todos os avisos ligados)
-
-```powershell
-New-Item -ItemType Directory -Force build
-```
-
-```powershell
-ghc -Wall -Werror -isrc -outputdir build/obj-app -o build/tabela src/Main.hs
-```
-
-```powershell
-ghc -Wall -Werror -isrc -outputdir build/obj-testes -o build/testes tests/Testes.hs
-```
-
-Depois execute `.\build\tabela.exe` e `.\build\testes.exe` no Windows, ou `./build/tabela` e
-`./build/testes` no Linux. O código compila **sem nenhum aviso** com `-Wall`.
-Nesta revisão, aplicação e testes foram compilados com `-Wall -Werror`.
-
-### Validação final no Ubuntu/WSL
-
-Na revisão de 25/11/2026, a aplicação e os testes compilaram sem avisos com GHC 9.10.3,
-no Ubuntu 26.04.1 LTS (x86_64), via WSL 2. Na raiz do projeto, execute:
+No Linux ou WSL:
 
 ```bash
 mkdir -p build
-ghc -fforce-recomp -Wall -Werror -isrc src/Main.hs -o build/brasileirao
-ghc -Wall -Werror -isrc -outputdir build/obj-testes tests/Testes.hs -o build/testes
+
+ghc -fforce-recomp -Wall -Werror -isrc \
+  -outputdir build/obj-app \
+  src/Main.hs -o build/brasileirao
+
+ghc -fforce-recomp -Wall -Werror -isrc \
+  -outputdir build/obj-testes \
+  tests/Testes.hs -o build/testes
+
 ./build/testes
-./build/brasileirao
-./build/brasileirao data/campeonato-teste.csv
 ./build/brasileirao data/brasileirao-2024.csv
 ```
 
-Os 119 testes passaram no executável e com `runghc -isrc tests/Testes.hs`. Foram verificados
-também dez cenários de execução: dados embutidos, CSV controlado, arquivo original, CSV real,
-arquivo vazio, entrada inválida, arquivo inexistente, diretório, bytes inválidos e nomes acentuados.
+A opção `-isrc` indica onde estão os módulos. `-Wall` habilita os avisos do compilador e `-Werror` trata esses avisos como erros. A recompilação completa (`-fforce-recomp`) evita o reaproveitamento de arquivos de compilação antigos.
 
-A primeira execução reaproveitou um objeto antigo e terminou com falha de segmentação.
-A recompilação completa com `-fforce-recomp` eliminou o problema. Ao alternar Windows e Linux,
-recompile todos os módulos ou use diretórios de objetos separados. A instalação nativa do
-Windows tinha falhas no Clang/GHC 9.10.3; esta revisão não comprova sua correção e não depende
-de diretórios temporários do GHCup.
+No Windows, os executáveis gerados possuem a extensão `.exe`. A instalação nativa utilizada durante o desenvolvimento apresentou problemas com o Clang; por isso, a validação final foi realizada no WSL. Não foi feita uma validação equivalente no playground online.
 
-## Formato da entrada
+### Usando o GHCi
 
-Cada linha descreve uma partida, com os campos separados por ponto e vírgula. Linhas em branco e
-linhas que começam com `#` são ignoradas, mas contam na numeração das mensagens de erro.
+```bash
+ghci -isrc src/Main.hs
+```
+
+Dentro do GHCi:
+
+```haskell
+:main
+:main data/teste.txt
+:module + Tipos Classificacao Leitura Dados
+fmap (map time . classificacao . ateRodada 3) (lerCampeonato dadosCampeonato)
+```
+
+## Formato dos dados
+
+As partidas são informadas em texto, com cinco campos separados por ponto e vírgula:
 
 ```text
 # rodada;mandante;gols mandante;gols visitante;visitante
@@ -142,165 +119,125 @@ linhas que começam com `#` são ignoradas, mas contam na numeração das mensag
 1;Flamengo;0;0;Cruzeiro
 ```
 
-Espaços em volta dos campos (e o `\r` de arquivos do Windows) são removidos. Os números precisam
-ser inteiros decimais (`3`, `-1`). Entradas como `dois`, `2a`, `3.0`, `+3`, `(3)`, `0x10` ou
-números que não cabem em um `Int` geram um `Erro`, e nunca uma exceção.
+O programa ignora linhas vazias e comentários iniciados por `#`. Também remove espaços nas extremidades dos campos.
 
-## O que o programa mostra
+Se encontrar um dado inválido, como um placar escrito por extenso, um número negativo ou um time escalado duas vezes na mesma rodada, o programa apresenta uma mensagem com a linha ou rodada do problema.
 
-O `main` demonstra as três camadas, em sequência:
+## O que o programa apresenta
 
-1. **Camada 1:** os times do campeonato (`times`) e o resultado de cada um rodada a rodada
-   (`resultadoPara`);
-2. **Camada 2:** a tabela final, com a explicação de cada empate em pontos;
-3. **Camada 2:** a tabela após a rodada intermediária (rodada 3), que tem outro líder;
-4. **Camada 2:** as estatísticas (total de gols, média por partida e maior goleada);
-5. **Robustez:** um campeonato sem partidas, em que tudo continua funcionando;
-6. **Camada 3:** o tratamento de uma entrada com erros, com o primeiro erro (`lerCampeonato`) e o
-   relatório completo (`todosOsErros`).
+A execução demonstra as três camadas na ordem prevista no trabalho:
 
-Trecho da saída:
+1. **Tipos e consultas:** lista os times e os resultados de cada um.
+2. **Classificação:** apresenta a tabela final e explica os desempates em pontos.
+3. **Tabela intermediária:** mostra a situação do campeonato após parte das rodadas.
+4. **Estatísticas:** calcula o total e a média de gols e identifica a maior goleada.
+5. **Tratamento de erros:** demonstra a leitura de um campeonato vazio e de uma entrada inválida.
 
-```text
-Camada 2 - Classificacao final
-------------------------------
-  Pos  Time           Pts   J   V   E   D   GP   GC   SG    Aprov
-    1  Botafogo        10   5   3   1   1   10    5   +5   66,67%
-    2  Palmeiras        9   5   3   0   2    8    5   +3   60,00%
-    3  Fortaleza        7   5   2   1   2    5    7   -2   46,67%
-    4  Flamengo         7   5   1   4   0    8    6   +2   46,67%
-    5  Internacional    4   5   1   1   3    7   11   -4   26,67%
-    6  Cruzeiro         4   5   1   1   3    5    9   -4   26,67%
-  * Fortaleza fica a frente de Flamengo (ambos com 7 pontos): desempate por vitorias
-  * Internacional fica a frente de Cruzeiro (ambos com 4 pontos): desempate por gols marcados
+A tabela contém posição, time, pontos, jogos, vitórias, empates, derrotas, gols pró, gols contra, saldo e aproveitamento.
 
-Camada 3 - Tratamento de uma entrada com erros
-----------------------------------------------
-  lerCampeonato para no primeiro erro:
-    Linha 3: "dois" nao e um numero inteiro
-  todosOsErros lista todos os problemas (7):
-    - Linha 3: "dois" nao e um numero inteiro
-    - Linha 4: esperados 5 campos separados por ';', encontrados 4
-    - Linha 5: o placar nao pode ter gols negativos
-    - Linha 6: Cruzeiro nao pode jogar contra si mesmo
-    - Linha 7: rodada 0 invalida (deve ser 1 ou mais)
-    - Linha 8: nome de time em branco
-    - Rodada 2: Flamengo esta escalado em mais de uma partida
-```
+## Campeonatos utilizados
 
-A saída usa apenas caracteres ASCII, sem acentos, para aparecer igual em qualquer console. O
-motivo está em [docs/decisoes.md](docs/decisoes.md).
+### Campeonato de teste
 
-## Dados reais e critérios de desempate
+Criamos um campeonato fictício com seis times, cinco rodadas e quinze partidas. Ele está em `src/Dados.hs` e em `data/campeonato-teste.csv`. O arquivo `data/teste.txt` contém a mesma entrada e foi mantido para comparação.
 
-O arquivo `data/brasileirao-2024.csv` contém 380 partidas, 20 times e 38 rodadas. A fonte é
-[Brasileirão Dataset](https://github.com/leeofernandes1980/brasileirao-dataset/blob/de69fdc5fa0f2b88c20d0a28fe2b769bdff197b9/dashboard/public/data/json/partidas_resumo.json),
-que identifica os registros de 2024 como provenientes do Sofascore. Consulta: 25/11/2026.
-O JSON foi filtrado por `temporada == 2024`, ordenado por rodada e identificador da partida e
-convertido para as cinco colunas exigidas, separadas por `;`. Os nomes e placares foram preservados;
-datas, estádio, identificador e demais campos foram descartados. O cabeçalho começa com `#`.
-O CSV legado da fonte termina antes de 2024 e não foi usado para gerar o arquivo entregue.
+Os resultados foram escolhidos para atender aos casos exigidos pelo enunciado e facilitar a conferência dos cálculos:
 
-A tabela final foi conferida com a [CBF](https://www.cbf.com.br/futebol-brasileiro/tabelas/campeonato-brasileiro/serie-a/2024):
-Botafogo com 79 pontos; 929 gols no campeonato. O teste compara as 20 linhas completas.
-Jogos adiados permanecem na rodada original; a tabela parcial representa rodadas, não datas.
+| Situação                      | Exemplo                                                                                |
+| ----------------------------- | -------------------------------------------------------------------------------------- |
+| Empate em 0 a 0               | Flamengo 0 x 0 Cruzeiro, rodada 1                                                      |
+| Vitória por três ou mais gols | Palmeiras 4 x 0 Cruzeiro                                                               |
+| Desempate por vitórias        | Fortaleza e Flamengo terminam com 7 pontos, mas o Fortaleza tem mais vitórias          |
+| Desempate por gols marcados   | Internacional fica à frente do Cruzeiro após empatarem em pontos, vitórias e saldo     |
+| Desempate por saldo           | Após a rodada 3, Palmeiras e Botafogo têm 6 pontos e 2 vitórias, mas saldos diferentes |
+| Mudança na liderança          | Palmeiras lidera na rodada 3; Botafogo termina em primeiro                             |
 
-A ordenação usa pontos, vitórias, saldo, gols pró e confronto direto. Este último só é aplicado
-quando há exatamente dois clubes empatados em pontos e um jogo em cada mando, pelo placar
-agregado. Cartões e sorteio não estão no formato de entrada: persistindo o empate, usa-se a ordem
-alfabética. Essa adaptação não equivale ao regulamento integral da CBF e precisa ser aceita na
-avaliação acadêmica. Ela não altera a classificação final do dataset de 2024.
+### Brasileirão 2024
 
-**Disciplina complementar.** `classificacaoComDisciplina partidas registros` permite aplicar
-menos cartões vermelhos e depois menos amarelos, após os critérios anteriores. Cada
-`RegistroCartoes rodada clube vermelhos amarelos` representa os cartões daquele jogo, não um
-total acumulado. Zero precisa ser informado; ausência ou registro inválido resulta em `Nothing`.
-Valores negativos, rodadas inválidas, clube em branco, duplicações e soma acima de `Int` são recusados
-pelas funções de contagem.
+O arquivo `data/brasileirao-2024.csv` reúne **380 partidas, 20 clubes e 38 rodadas** da Série A de 2024.
 
-A comparação disciplinar exige cobertura de todas as partidas de cada clube do grupo empatado
-em pontos, vitórias, saldo e gols. Sem essa cobertura, nenhum par desse grupo usa cartões; isso
-evita uma ordenação contraditória. Apenas registros das rodadas em que o clube jogou na lista
-recebida são considerados. Assim, `classificacaoComDisciplina (ateRodada n partidas) registros`
-não incorpora cartões de rodadas futuras.
+Os resultados foram obtidos do projeto [Brasileirão Dataset](https://github.com/leeofernandes1980/brasileirao-dataset/blob/de69fdc5fa0f2b88c20d0a28fe2b769bdff197b9/dashboard/public/data/json/partidas_resumo.json), que identifica seus registros de 2024 como provenientes do Sofascore (consulta em 25/11/2026). Selecionamos a temporada de 2024, ordenamos as partidas por rodada e identificador e mantivemos apenas os cinco campos necessários.
 
-`statusDesempate` distingue `ResolvidoPor`, `ConfrontoDiretoIncompleto`,
-`DadosDisciplinaresIndisponiveis` e `EmpateParaSorteio`. O último só ocorre com os critérios
-aplicáveis conhecidos e iguais. Nenhum sorteio é executado. A ordem alfabética serve apenas
-à apresentação quando a posição oficial está indefinida; o `main` informa essa limitação.
+Comparamos a classificação final calculada com a [tabela divulgada pela CBF](https://www.cbf.com.br/futebol-brasileiro/tabelas/campeonato-brasileiro/serie-a/2024). O resultado inclui o Botafogo com 79 pontos e um total de 929 gols no campeonato.
 
-O `main` preserva `classificacao :: [Partida] -> [Linha]` e não lê cartões. A extensão disciplinar
-é usada diretamente em Haskell e nos testes, sem novo CSV obrigatório. Não há base disciplinar
-real versionada: a tabela da CBF publica totais finais, mas eles não foram distribuídos
-artificialmente por rodadas. Os registros dos testes são fictícios e identificados como tais.
+A tabela parcial considera o número da rodada, e não a data em que cada jogo aconteceu. Assim, partidas adiadas permanecem na rodada à qual pertencem.
 
-## Campeonato de teste
+## Classificação e desempates
 
-O campeonato fica em [src/Dados.hs](src/Dados.hs), [data/campeonato-teste.csv](data/campeonato-teste.csv)
-e no arquivo original [data/teste.txt](data/teste.txt). É um
-campeonato fictício com seis clubes da Série A 2024, em turno único de 5 rodadas (15 partidas), em
-que nenhum time joga duas vezes na mesma rodada. Os placares foram escolhidos para cobrir os
-casos de borda:
+A função obrigatória `classificacao :: [Partida] -> [Linha]` ordena os times por:
 
-| Caso exigido ou de borda | Onde aparece |
-|---|---|
-| Empate em 0 x 0 | Flamengo 0 x 0 Cruzeiro (rodada 1) |
-| Vitória por 3 ou mais gols | Palmeiras 4 x 0 Cruzeiro e Botafogo 3 x 0 Fortaleza |
-| Empate em pontos decidido por **vitórias** | Fortaleza e Flamengo com 7 pontos. Fortaleza fica à frente com 2 vitórias contra 1, mesmo com saldo pior |
-| Empate em pontos, vitórias e saldo, decidido por **gols marcados** | Internacional e Cruzeiro com 4 pontos, 1 vitória e saldo -4. Internacional marcou 7 gols, e Cruzeiro, 5 |
-| Empate decidido por **saldo** | Após a rodada 3: Palmeiras (+4) e Botafogo (+2), ambos com 6 pontos e 2 vitórias |
-| Tabela intermediária diferente da final | Palmeiras lidera após a rodada 3, e Botafogo é o campeão |
-| Outros | Time invicto (Flamengo), vitórias fora de casa, empates com gols (2 x 2 e 3 x 3) |
+1. Pontos;
+2. Número de vitórias;
+3. Saldo de gols;
+4. Gols marcados;
+5. Confronto direto, quando aplicável.
+
+O confronto direto considera os dois jogos entre os clubes e só é usado quando exatamente dois times estão empatados em pontos. Quando há três ou mais clubes nessa situação, o critério não é aplicado.
+
+Se todos os critérios disponíveis continuarem iguais, a função usa a ordem alfabética para apresentar a tabela de maneira estável. **Essa ordem não é um critério oficial da CBF.**
+
+Como complemento, criamos `classificacaoComDisciplina`, que recebe registros de cartões por clube e rodada. Ela pode usar o menor número de cartões vermelhos e depois amarelos, desde que existam dados válidos para todos os clubes envolvidos no desempate. A ausência de registros é tratada como informação indisponível, e não como zero cartões. O sistema também identifica situações que dependem de sorteio, mas não realiza o sorteio.
+
+Essa extensão é testada separadamente. O `main` continua usando a função obrigatória `classificacao` e o CSV original de cinco campos. Não incluímos uma base real de cartões por rodada, pois os dados dos testes disciplinares são fictícios. Portanto, o programa **não reproduz todos os critérios do regulamento oficial em qualquer situação**, embora a classificação final calculada para 2024 coincida com a da CBF.
+
+As justificativas para essas escolhas estão em [docs/decisoes.md](docs/decisoes.md).
 
 ## Testes
 
-São 119 testes em [tests/Testes.hs](tests/Testes.hs). Cada um compara o valor obtido com o esperado,
-conferido à mão, e os testes são separados por camada:
+O arquivo [tests/Testes.hs](tests/Testes.hs) reúne **119 testes**, divididos da seguinte forma:
 
-- **Camada 1 (14 testes):** `resultadoPara` para o mandante, o visitante e um time que não jogou
-  (que dá `Nothing`) e para o 0 x 0; `participou`; `golsMarcados` e `golsSofridos`; `times` sem
-  repetição e em ordem alfabética, inclusive sem partidas; e a verificação de que o campeonato de
-  teste atende aos mínimos (6 times, 5 rodadas, ninguém repetido na rodada, um 0 x 0 e uma
-  goleada).
-- **Camada 2 (29 testes):** `pontos`, `linhaDoTime`, `pontosLinha`, `saldo` e `aproveitamento`
-  (inclusive de quem não jogou); a classificação completa conferida à mão; os três desempates,
-  cada um com o critério que decidiu (`criterioDecisivo`); o critério alfabético; a
-  classificação de `ateRodada 3`, diferente da final; e `maiorGoleada` e `mediaGols`, com a
-  lista vazia (`Nothing`) e com empate na diferença de gols; confronto direto, exclusão desse
-  critério em empate triplo e independência da ordem de entrada.
-- **Camada 3 (37 testes):** `separar`; `lerPartida` válida, com espaços e `\r`; `lerCampeonato`
-  sobre a entrada válida (`Right` com as 15 partidas), sobre um texto só com comentários e sobre
-  o texto vazio; **um teste para cada construtor de `Erro`**, além dos formatos numéricos
-  traiçoeiros (`2a`, `(3)`, `0x10` e um número que estoura `Int`); `todosOsErros` com 7 linhas
-  inválidas e múltiplos problemas na mesma linha; escalações repetidas com placar inválido;
-  integração do parser com a classificação; a coerência entre `lerCampeonato` e `todosOsErros`; as mensagens de erro; e a
-  formatação da tabela, inclusive a tabela vazia.
+| Grupo                   |  Testes | O que foi verificado                                                                |
+| ----------------------- | ------: | ----------------------------------------------------------------------------------- |
+| Camada 1                |      14 | Tipos, resultados das partidas, consultas e campeonato de teste                     |
+| Camada 2                |      29 | Pontuação, classificação, estatísticas, desempates e listas vazias                  |
+| Camada 3                |      37 | Leitura, conversões, construtores de `Erro`, relatório de erros e formatação        |
+| Desempates e disciplina |      31 | Confronto direto, cartões válidos ou ausentes, dados incompletos e sorteio pendente |
+| Integração dos arquivos |       8 | Leitura dos CSVs, classificação real e resultados esperados                         |
+| **Total**               | **119** |                                                                                     |
 
-- **Desempates e disciplina (31 testes):** critérios esportivos, confronto incompleto com
-  empate real, cartões conhecidos ou ausentes, registros inválidos, cobertura parcial,
-  rodadas futuras, empate triplo e sorteio pendente.
-- **Arquivos CSV (8 testes):** equivalência dos dados controlados, estrutura do dataset real,
-  ausência de erros, tabela final completa comparada com a CBF, gols e classificação parcial.
+Na validação registrada em 25/11/2026, os **119 testes passaram** tanto no executável compilado quanto com `runghc`. Também foram verificados **dez cenários de integração**, incluindo arquivos válidos, vazios, inválidos, inexistentes, nomes acentuados e bytes inválidos.
 
-Os testes de arquivos devem ser executados na raiz do projeto.
+Para executar novamente:
 
-Além das camadas e dos arquivos CSV (incluindo o Brasileirão 2024 e rodadas intermediárias), os testes cobrem desempates por vitórias, saldo e gols marcados, confronto direto entre dois clubes, empate entre três ou mais clubes, confronto direto sem as duas partidas, cartões amarelos/vermelhos, ausência de dados disciplinares e sorteio.
+```bash
+runghc -isrc tests/Testes.hs
+```
 
-## Onde está cada requisito
+O resultado esperado termina com:
 
-| Requisito do enunciado | Onde está |
-|---|---|
-| `Time`, `Resultado`, `Partida`, `Linha` | [src/Tipos.hs](src/Tipos.hs) |
-| `participou`, `resultadoPara`, `times` | [src/Tipos.hs](src/Tipos.hs) |
-| Campeonato de teste (6 times, 5 rodadas, 0 x 0, goleada, empate em pontos) | [src/Dados.hs](src/Dados.hs) |
-| `pontos`, `linhaDoTime` (com `foldr`), `pontosLinha`, `saldo`, `aproveitamento` | [src/Classificacao.hs](src/Classificacao.hs) |
-| `classificacao` com `sortBy`, `comparing`, `Down` e `<>` | `criterios` e `compararLinhas` em [src/Classificacao.hs](src/Classificacao.hs) |
-| `ateRodada`, `maiorGoleada`, `mediaGols` (totais, com `Maybe`) | [src/Classificacao.hs](src/Classificacao.hs) |
-| `map`, `filter`, dobra e `(.)` na Camada 2, sem recursão explícita | [src/Classificacao.hs](src/Classificacao.hs) |
-| `data Erro` (5 construtores exigidos + 2 extras) | [src/Leitura.hs](src/Leitura.hs) |
-| `separar`, `lerPartida` (`do` em `Either`), `lerCampeonato` (`traverse`), `todosOsErros` | [src/Leitura.hs](src/Leitura.hs) |
-| `readMaybe` em vez de `read`; `Maybe` como mônada (`>>=`) e functor (`<$>`, `maybe`) | `lerInteiro` em [src/Leitura.hs](src/Leitura.hs) |
-| `tabelaFormatada` | [src/Leitura.hs](src/Leitura.hs) |
-| `main` como única função com IO, com os dados no código | [src/Main.hs](src/Main.hs) |
-| Testes obrigatórios das três camadas | [tests/Testes.hs](tests/Testes.hs) |
-| Decisões de modelagem e limitações | [docs/decisoes.md](docs/decisoes.md) |
+```text
+119 de 119 testes passaram.
+```
+
+Se algum teste falhar, o programa de testes retorna um código de saída diferente de zero.
+
+## Relação com os requisitos do PjBL2
+
+| Requisito                                                     | Implementação          |
+| ------------------------------------------------------------- | ---------------------- |
+| Tipos algébricos e records                                    | `src/Tipos.hs`         |
+| Consultas sobre partidas                                      | `src/Tipos.hs`         |
+| Campeonato com seis times e cinco rodadas                     | `src/Dados.hs`         |
+| Classificação, estatísticas e funções de ordem superior       | `src/Classificacao.hs` |
+| Leitura com `Maybe`, `Either`, `do`, `traverse` e `readMaybe` | `src/Leitura.hs`       |
+| Relatório completo de erros e tabela formatada                | `src/Leitura.hs`       |
+| Demonstração das três camadas                                 | `src/Main.hs`          |
+| Testes com resultados esperados                               | `tests/Testes.hs`      |
+| Justificativas e limitações                                   | `docs/decisoes.md`     |
+
+## Limitações conhecidas
+
+- A classificação principal não recebe cartões disciplinares. Por isso, em empates não resolvidos pelos resultados das partidas, a ordem alfabética é usada somente para exibição.
+- Os nomes dos times são comparados exatamente como aparecem no arquivo. Diferenças de maiúsculas, minúsculas ou acentos podem representar times diferentes.
+- O programa não exige rodadas consecutivas nem verifica se todos os clubes jogaram o mesmo número de vezes.
+- Os times que ainda não disputaram partidas não aparecem na tabela intermediária.
+- Os dados de entrada devem ser salvos em UTF-8 sem BOM ou ASCII. A saída do programa foi mantida em ASCII para evitar problemas de codificação observados no console Windows usado no desenvolvimento.
+- O arquivo inteiro é carregado na memória antes da análise. Essa escolha atende ao volume do projeto, mas não foi pensada para bases muito maiores.
+
+Outras decisões de implementação estão explicadas em [docs/decisoes.md](docs/decisoes.md).
+
+## Referências
+
+- [CBF — Campeonato Brasileiro Série A 2024](https://www.cbf.com.br/futebol-brasileiro/tabelas/campeonato-brasileiro/serie-a/2024)
+- [Brasileirão Dataset — dados das partidas de 2024](https://github.com/leeofernandes1980/brasileirao-dataset/blob/de69fdc5fa0f2b88c20d0a28fe2b769bdff197b9/dashboard/public/data/json/partidas_resumo.json)
+- [GHC — Glasgow Haskell Compiler](https://www.haskell.org/ghc/)

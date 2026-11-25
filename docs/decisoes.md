@@ -1,351 +1,215 @@
 # Decisões de Modelagem e Limitações
 
-## 1. Visão geral
+Este documento reúne as principais escolhas feitas no desenvolvimento do Brasileirão Analytics. A intenção é explicar como organizamos o código, por que utilizamos determinadas funções do Haskell e quais situações o programa ainda não cobre.
 
-O **Brasileirão Analytics** é um programa em Haskell que calcula a tabela de classificação de um
-campeonato de futebol a partir dos resultados das partidas. Ele usa as ideias centrais da
-programação funcional:
+## 1. Organização do projeto
 
-- **tipos algébricos** para modelar o domínio;
-- **funções de ordem superior** para calcular a tabela, sem recursão explícita;
-- **`Maybe` e `Either`** para tratar a ausência de resultado e os erros de entrada sem exceções.
+Dividimos o projeto em três camadas, como solicitado no PjBL2.
 
-Este documento explica **por que** cada decisão foi tomada e lista, ao final, as **limitações
-conhecidas** do sistema.
+| Camada              | Arquivo            | Responsabilidade                                                        |
+| ------------------- | ------------------ | ----------------------------------------------------------------------- |
+| 1 — Tipos e dados   | `Tipos.hs`         | Representar partidas, times e resultados                                |
+| 2 — Classificação   | `Classificacao.hs` | Calcular a tabela, os desempates e as estatísticas                      |
+| 3 — Leitura e saída | `Leitura.hs`       | Converter o texto de entrada, validar os dados e formatar os resultados |
 
-## 2. Arquitetura
+Além dessas camadas, `Dados.hs` contém o campeonato fictício e as entradas de exemplo. `Main.hs` reúne as funcionalidades e mostra o relatório no terminal.
 
-| Camada | Módulo | Responsabilidade |
-|---|---|---|
-| 1. Tipos e dados | `Tipos.hs` | Tipos do domínio e consultas sobre uma partida |
-| 2. Classificação | `Classificacao.hs` | Linha de cada time, ordenação, desempates e estatísticas |
-| 3. Leitura e saída | `Leitura.hs` | Texto → partidas (com validação), erros e formatação |
-| (dados) | `Dados.hs` | Campeonato de teste e entradas de exemplo, como `String` |
-| (casca de IO) | `Main.hs` | Obtém o texto e imprime o relatório |
+Procuramos deixar os cálculos fora do `main`. Assim, as funções recebem dados e devolvem resultados sem depender da leitura de arquivos ou da impressão no terminal. Isso também facilita os testes.
 
-As dependências seguem as camadas (`Tipos` ← `Classificacao` ← `Leitura` ← `Main`), sem ciclos.
+## 2. Tipos e representação dos dados
 
-**Núcleo puro e casca de IO.** `main` é a única função com IO do programa. O relatório inteiro é
-montado pela função pura `demonstracao :: String -> String -> String`, e `main` apenas decide de
-onde vem o texto e o imprime. Assim, qualquer parte do programa pode ser testada sem IO, tanto em
-`tests/Testes.hs` quanto no GHCi.
+### Tipos algébricos
 
-**Origem dos dados.** O playground não tem entrada pelo teclado e o enunciado proíbe `getLine`.
-Por isso, os dados ficam no código, em `Dados.hs`. Como opção para o GHC local, `main` aceita o
-caminho de um arquivo como argumento. Essa leitura usa `try` (de `Control.Exception`, que faz
-parte da `base`): se o arquivo não existir ou não puder ser lido, a falha vira uma mensagem, e
-não uma exceção. `evaluate` força a leitura completa ainda dentro do `try`, porque `readFile` é
-preguiçoso e um erro poderia aparecer depois, já fora da proteção.
+Usamos `type Time = String` porque é a representação pedida no trabalho. Para os resultados das partidas, criamos o tipo `Resultado` com os construtores `Vitoria`, `Empate` e `Derrota`.
 
-## 3. Camada 1: tipos
+Essa escolha permite representar os três resultados possíveis sem depender de textos como `"V"` ou `"D"`. Também facilita o tratamento de cada caso por casamento de padrões.
 
-| Decisão | Justificativa |
-|---|---|
-| `type Time = String` | Exigido pelo enunciado. Deixa as assinaturas mais legíveis (`Time -> Partida -> Bool`). |
-| `Resultado` como tipo soma (`Vitoria \| Empate \| Derrota`) | Fecha o conjunto de valores possíveis. Um `"v"` minúsculo compilaria como `String`, mas não como `Resultado`, e com `-Wall` o compilador avisa se algum caso ficar sem tratamento (`pontos` e `resultadoDoPlacar` tratam todos). |
-| `Partida` e `Linha` como *records* | Cada número tem nome. Numa tupla `(Int, String, Int, Int, String)`, trocar os gols do mandante com os do visitante compilaria sem aviso. |
-| `Linha` guarda **apenas contagens** (jogos, V, E, D, gols pró e contra) | Pontos, saldo e aproveitamento são **funções** da Camada 2, e não campos. Assim, uma linha nunca fica com pontos que não batem com as vitórias e os empates: esse estado inválido simplesmente não pode ser representado. |
-| `resultadoPara` devolve `Maybe Resultado` | A ausência de resultado (o time não jogou) faz parte do tipo, e quem chama precisa tratá-la. Não existe um valor "falso" como `Derrota` para representá-la. |
-| `golsMarcados` e `golsSofridos` devolvem 0 para quem não jogou | 0 é o elemento neutro da soma. Usadas dentro de uma dobra, essas funções nunca alteram a linha de um time que não jogou. A distinção entre "não jogou" e "não marcou" fica com `participou` e `resultadoPara`. |
-| `resultadoPara` usa `compare` sobre os gols | `case compare marcados sofridos of GT/EQ/LT` cobre os três casos sem `if` encadeados, e o compilador confere que todos foram tratados. |
-| `times = sort . nub . concatMap ...` | É uma composição simples: junta mandantes e visitantes, remove repetições e ordena. Não usa `map head . group`, porque `head` é parcial (e gera aviso no GHC ≥ 9.8). |
+### Records
 
-## 4. Camada 2: classificação com ordem superior
+`Partida` e `Linha` foram definidos como _records_. Preferimos essa estrutura porque os nomes dos campos deixam o código mais fácil de ler.
 
-**Sem recursão explícita.** Toda a camada usa `map`, `filter`, `foldr`, `zip`, `sortBy` e
-composição. Por exemplo:
+Em uma tupla, seria possível trocar dois valores inteiros sem que o compilador percebesse. Os records ajudam a entender o papel de cada campo, embora não impeçam, sozinhos, toda troca de valores do mesmo tipo.
 
-- `ateRodada n = filter ((<= n) . rodada)`;
-- `ultimaRodada = foldr (max . rodada) 0`;
-- `totalDeGols = sum . map golsDaPartida`.
+A `Linha` guarda jogos, vitórias, empates, derrotas, gols pró e gols contra. Pontos, saldo e aproveitamento são calculados pelas funções da Camada 2, evitando manter esses valores duplicados.
 
-**`linhaDoTime`: `filter` + `foldr`.** A função primeiro filtra as partidas do time e depois soma
-uma a uma, com `somarPartida`, a partir de `linhaVazia`. Sobre a escolha da dobra:
+### Consultas sobre partidas
 
-- Somar as contribuições de cada partida é associativo e comutativo, então a ordem da dobra não
-  muda o resultado.
-- Escolhemos `foldr` porque está no `Prelude` de todas as versões do GHC e combina com a leitura
-  natural: "a linha é a soma desta partida com a linha do resto".
-- `foldl` (preguiçoso) acumularia *thunks* sem nenhuma vantagem.
-- `foldl'` exigiria `import Data.List (foldl')`. A partir do GHC 9.10, `foldl'` passou a vir no
-  `Prelude`, então esse import mudaria de necessário (GHC antigo) para redundante (GHC novo).
-- Para um campeonato (no máximo 38 jogos por time), a diferença de desempenho é desprezível.
+`participou` verifica se um time aparece como mandante ou visitante. As funções `golsMarcados` e `golsSofridos` consultam o placar do ponto de vista do clube informado.
 
-**Pontuação centralizada.** `pontosLinha` e `aproveitamento` usam `pontos Vitoria` em vez do
-número 3 escrito direto. Para mudar a regra de pontuação, basta alterar `pontos`.
+Em `resultadoPara`, utilizamos `Maybe Resultado`. Quando o clube participou, a função devolve `Just` com o resultado. Caso contrário, devolve `Nothing`. Consideramos essa resposta mais adequada do que usar uma derrota ou outro valor para indicar ausência de partida.
 
-**`aproveitamento`.** A função devolve o percentual (0 a 100) dos pontos disputados. A conversão
-`fromIntegral` é feita antes da divisão com `(/)`: dividir com `div` truncaria o resultado, e
-`(/)` não aceita `Int`. Quando `jogos == 0`, o resultado é 0, o que evita a divisão por zero.
+Para obter a lista de clubes, `times` reúne mandantes e visitantes, remove repetições com `nub` e ordena os nomes com `sort`.
 
-**Critérios de desempate (adaptação do Brasileirão).** A ordem é:
+## 3. Cálculos da classificação
 
-1. pontos;
-2. vitórias;
-3. saldo de gols;
-4. gols marcados;
-5. confronto direto, quando aplicável;
-6. ordem alfabética como último recurso determinístico.
+### Funções de ordem superior
 
-- Os critérios ficam numa **única lista nomeada**, `criterios :: [(String, Linha -> Linha ->
-  Ordering)]`, que é a fonte única de verdade.
-- `compararLinhas a b = foldr (\(_, compara) resto -> compara a b <> resto) EQ criterios`
-  aplica os critérios em ordem e junta os resultados com `<>`. O resultado é o mesmo de
-  `comparing (Down . pontosLinha) <> comparing (Down . vitorias) <> ...`.
-  - `Ordering` é um `Monoid`: `LT <> _ = LT`, `GT <> _ = GT` e `EQ <> y = y`. Por isso, o
-    primeiro critério diferente de `EQ` decide, e os seguintes nem são avaliados.
-  - `Down` inverte a ordem, porque quem tem **mais** fica acima.
-  - Preferimos combinar valores `Ordering`, e não funções (`mconcat (map snd criterios)`),
-    porque a dobra explícita é mais fácil de explicar, linha a linha.
-- A ordenação usa uma única chamada a `sortBy`. `criteriosDoCampeonato` acrescenta o confronto
-  direto aos critérios existentes, antes da ordem alfabética. Encadear vários `sortBy` seria frágil.
-- `criterioDecisivo` compara linhas isoladas; `criterioDecisivoCampeonato` usa as partidas e os
-  mesmos critérios da classificação para explicar a saída.
-- Conforme o [art. 15 do regulamento da CBF de 2024](https://www.netvasco.com.br/news/noticias16/arquivos/20240229-212757-2-rec--brasileiro-serie-a-2024.pdf),
-  o confronto direto só é usado quando exatamente dois clubes empatam em pontos. O programa
-  exige um jogo de ida e um de volta e compara o saldo agregado desses jogos. Com três ou mais
-  clubes empatados em pontos, o critério é ignorado, evitando uma comparação não transitiva.
-- O caminho obrigatório `classificacao` não recebe cartões. A extensão
-  `classificacaoComDisciplina` acrescenta menos vermelhos e depois menos amarelos.
-  Ordem alfabética não é regra oficial nem representa sorteio.
+O enunciado não permite recursão explícita na Camada 2. Por isso, usamos principalmente `map`, `filter`, `foldr`, `sortBy` e composição com `(.)`.
 
-**Funções totais.** Nenhuma função da camada quebra com a lista vazia:
+A função `linhaDoTime` primeiro seleciona as partidas de um clube com `filter` e depois acumula os resultados com `foldr`, começando por uma linha zerada.
 
-- `maiorGoleada` é um `foldr` que começa em `Nothing`. Ela não usa `maximumBy` nem `foldr1`, e
-  em caso de empate fica a primeira partida da lista.
-- `mediaGols` trata `[]` por casamento de padrão e devolve `Nothing`.
-- `empatesEmPontos` usa `zip tabela (drop 1 tabela)` em vez de `tail`.
-- A largura da coluna de nomes em `tabelaFormatada` é um `foldr` com valor inicial, e não um
-  `maximum`.
+Escolhemos `foldr` porque funciona bem nesse cálculo, não precisa de dependências adicionais e é simples de acompanhar. Como cada time disputa poucas dezenas de jogos, a diferença prática em relação a outras dobras não é relevante para o projeto.
 
-**Tabela parcial.** `classificacao (ateRodada n partidas)` mostra a tabela em qualquer momento do
-campeonato, reaproveitando as mesmas funções.
+### Pontos, saldo e aproveitamento
 
+A função `pontos` centraliza a pontuação de cada resultado: três por vitória, um por empate e zero por derrota. `pontosLinha` utiliza essa função para calcular o total do clube.
 
-**Disciplina opcional.** `RegistroCartoes` identifica rodada, clube, vermelhos e amarelos
-da partida. Acrescentamos a rodada para que uma tabela parcial não use cartões futuros.
-`totalCartoesVermelhos` e `totalCartoesAmarelos` devolvem `Maybe Int`: ausência, valores
-negativos, rodada inválida, nome em branco, registros repetidos ou estouro da soma produzem
-`Nothing`; zero informado produz `Just 0`. As consultas disciplinares de `Tipos` também
-devolvem `Nothing`, pois `Partida` não contém esses dados.
+O saldo é a diferença entre gols marcados e sofridos. Já o aproveitamento considera a proporção de pontos conquistados em relação aos pontos disputados. Utilizamos `fromIntegral` para realizar a divisão com `Double`.
 
-Antes de ordenar por cartões, a extensão exige um registro para cada partida considerada de
-cada clube do grupo empatado nos quatro primeiros critérios. Registros de outras rodadas são
-ignorados. A disponibilidade é verificada para todo o grupo: comparar apenas os pares com
-cartões e usar o nome nos demais poderia tornar a comparação não transitiva.
+Quando um time não disputou partidas, `aproveitamento` retorna zero, evitando a divisão por zero.
 
-`statusDesempate` e a ordenação usam a mesma lista de critérios. Faltando ida ou volta para
-dois clubes empatados, o estado é `ConfrontoDiretoIncompleto`; a disciplina não substitui esse
-critério ausente. Para três ou mais clubes empatados em pontos, o confronto não se aplica.
-`DadosDisciplinaresIndisponiveis` indica cobertura ausente ou inválida. `EmpateParaSorteio`
-exige igualdade com dados completos. A ordem alfabética apenas estabiliza a apresentação,
-sem produzir um resultado de sorteio ou afirmar uma posição oficial.
+### Ordenação e desempates
 
-O `main` mantém a interface obrigatória e o CSV de cinco campos. Não foi adicionada leitura
-disciplinar: a extensão é complementar, com dados fictícios explícitos nos testes. A página
-da CBF publica totais finais de cartões; sem uma base por rodada, esses totais não permitem
-reproduzir a disciplina das classificações intermediárias.
+A classificação é ordenada com `sortBy`, usando `comparing`, `Down` e a combinação de valores `Ordering` com `<>`.
 
+A ordem aplicada pela função obrigatória `classificacao` é:
 
-## 5. Camada 3: leitura, validação e saída
+1. Pontos;
+2. Vitórias;
+3. Saldo de gols;
+4. Gols marcados;
+5. Confronto direto, quando aplicável;
+6. Ordem alfabética para apresentação, caso o empate continue.
 
-**`Erro` com sete construtores.** São os cinco exigidos (`CamposInvalidos`, `NumeroInvalido`,
-`PlacarNegativo`, `MesmoTime`, `TimeRepetidoNaRodada`) mais dois:
+A ordem alfabética **não faz parte dos critérios oficiais de desempate da CBF**. Ela foi mantida para que a tabela tenha uma ordem estável quando os dados de entrada não permitem decidir todas as posições.
 
-- `RodadaInvalida`, para rodada 0 ou negativa;
-- `TimeVazio`, para um nome em branco. Sem ele, a linha `1;;2;0;` seria aceita com um time de
-  nome `""`, ou acusada como `MesmoTime`, o que confundiria o usuário.
+O confronto direto só é considerado quando existem exatamente dois clubes empatados em pontos e os dois jogos entre eles, um em cada mando. Nesse caso, utilizamos o resultado agregado. Quando há três ou mais clubes empatados em pontos, o confronto direto não é aplicado.
 
-Cada construtor carrega a **linha** do problema. A exceção é `TimeRepetidoNaRodada`, que carrega
-a **rodada** e o time, porque essa verificação acontece depois da leitura, sobre a lista de
-partidas. Os construtores também guardam um detalhe útil: quantos campos a linha tinha, ou qual
-texto não era número. `mensagemErro` transforma cada erro em uma frase que diz onde está o
-problema.
+Organizamos os critérios em listas de comparações nomeadas. Isso permite usar a mesma lógica para ordenar a tabela e explicar qual critério decidiu a posição de um clube.
 
-**`lerPartida`: um `case` e um bloco `do`.** O `case` só confere a quantidade de campos. As
-validações são encadeadas pela notação `do` na mônada `Either`, e o primeiro `Left` interrompe o
-resto. A ordem é:
+### Cartões e sorteio
 
-1. converter os números;
-2. ler os nomes;
-3. conferir se a rodada é maior ou igual a 1;
-4. conferir se o placar não é negativo;
-5. conferir se mandante e visitante são times diferentes.
-
-Não há `case` aninhados (a "escadinha" citada nas armadilhas).
-
-**`lerInteiro`: conversão sem exceções.** A conversão é uma cadeia na mônada `Maybe`, ligada por
-`>>=`, e `maybe` transforma o `Nothing` em `Left`:
+Acrescentamos uma funcionalidade complementar para tratar cartões disciplinares, sem alterar a assinatura obrigatória:
 
 ```haskell
-soAlgarismos texto >>= readMaybe >>= cabeEmInt
+classificacao :: [Partida] -> [Linha]
 ```
 
-- **`soAlgarismos`:** só aceita algarismos, com um `-` opcional. Durante os testes, descobrimos
-  que `readMaybe` sozinho aceita `"(3)"` e `"0x10"`, que são sintaxe de literais do Haskell.
-- **`readMaybe`:** converte para `Integer`, que não estoura. Nunca é usado `read`, que lançaria
-  `Prelude.read: no parse`.
-- **`cabeEmInt`:** confere se o valor cabe em um `Int`. Também descobrimos que
-  `readMaybe "99999999999999999999" :: Maybe Int` "dá a volta" e devolve um número qualquer. Agora
-  esse texto vira `NumeroInvalido`.
-- O sinal negativo passa por `soAlgarismos` de propósito: assim, `-1` vira `PlacarNegativo` ou
-  `RodadaInvalida`, uma mensagem mais precisa que "não é um número".
+A função `classificacaoComDisciplina` recebe também uma lista de `RegistroCartoes`, contendo rodada, clube, cartões vermelhos e amarelos. Ela permite comparar primeiro o número de cartões vermelhos e depois o de amarelos, quando os critérios anteriores não resolvem o empate.
 
-**`lerCampeonato`: `traverse` e verificação das rodadas.**
+Nessa parte, utilizamos `Maybe Int` para distinguir duas situações:
 
-- `traverse (uncurry lerPartida)` aplica a leitura a todas as linhas dentro de `Either` e para
-  no primeiro erro.
-- Depois, `verificarRodadas` confere se algum time foi escalado duas vezes na mesma rodada.
-- A numeração das linhas conta **todas** as linhas do texto, inclusive comentários e linhas em
-  branco, para que "Linha 7" seja a linha 7 do arquivo.
+- `Just 0`: existe um registro válido informando zero cartões;
+- `Nothing`: não há informação suficiente ou algum registro é inválido.
 
-**`todosOsErros`: relatório completo.**
+Os registros são verificados quanto a números negativos, rodadas inválidas, nomes vazios, duplicações e estouro da soma. Para comparar os clubes por cartões, exigimos dados de todas as partidas relevantes para o grupo empatado. Essa verificação evita comparações inconsistentes entre alguns clubes do grupo.
 
-- `errosDaLinha` verifica independentemente os campos, usando `lefts` e `rights` para reunir
-  erros numéricos e conferir os valores que puderam ser lidos. Assim, uma linha pode gerar
-  `NumeroInvalido`, `PlacarNegativo` e `MesmoTime` ao mesmo tempo.
-- `escalacoesDaLinha` usa rodadas válidas e nomes conhecidos mesmo quando o placar está errado.
-  Um time aparece uma única vez por partida; jogar contra si mesmo gera `MesmoTime`.
-- Primeiro vêm os erros de linha, em ordem de leitura; depois, os erros de escalação. Campos
-  em quantidade errada geram `CamposInvalidos`, pois não há como associá-los com segurança.
-- `lerCampeonato` mantém a interrupção no primeiro erro via `traverse`. A lista completa tem
-  finalidade diferente e pode detectar uma infração de rodada mesmo em linhas inválidas.
+Em tabelas parciais, só entram cartões das rodadas presentes na lista de partidas. Portanto, não utilizamos cartões de jogos futuros.
 
-**`separar` com `foldr`.** A dobra guarda o campo em construção e os campos já completos.
-`separar` preserva campos vazios (`separar ';' "a;;b" == ["a","","b"]`), o que permite detectar
-`CamposInvalidos` e `TimeVazio`. Os campos são depois limpos de espaços nas pontas, inclusive o
-`\r` de arquivos do Windows.
+O tipo `StatusDesempate` identifica se houve um critério decisivo, se o confronto direto está incompleto, se faltam dados disciplinares ou se o empate depende de sorteio. **Não realizamos um sorteio nem inventamos seu resultado.**
 
-**`tabelaFormatada`: colunas descritas como dados.** Cada coluna é descrita por título, largura e
-função que calcula o valor. Acrescentar uma coluna é acrescentar uma linha em `colunas`. Além das
-colunas pedidas (posição, time, pontos, J, V, E, D e saldo), a tabela mostra gols pró, gols contra
-e aproveitamento, que tornam visível o motivo de cada desempate.
+Essa funcionalidade é usada nos testes e pode ser chamada diretamente em Haskell. O `main` continua utilizando o CSV de cinco campos e a função `classificacao`. Não foi incluída uma base real de cartões por rodada, e os registros disciplinares dos testes são fictícios. A classificação final calculada para 2024 corresponde à tabela divulgada pela CBF, mas isso não significa que todos os critérios oficiais possam ser reproduzidos com qualquer conjunto de dados.
 
-**Saída somente em ASCII.** As mensagens e os nomes do campeonato de teste não têm acentos:
+### Listas vazias e estatísticas
 
-- No computador usado no desenvolvimento, o GHC usa **CP437** como codificação local, e essa
-  codificação nem tem a letra `ã`.
-- Um teste com `putStrLn "São Paulo"` derrubou o programa com
-  `<stdout>: commitBuffer: invalid argument (cannot encode character '\227')`. Isso violaria a
-  regra de que nada pode encerrar o programa com exceção.
-- Com saída ASCII, o programa imprime corretamente em qualquer console, no Windows, no Linux e no
-  playground.
-- Os comentários do código têm acentos normalmente, porque o GHC sempre lê o código-fonte como
-  UTF-8.
+`maiorGoleada` e `mediaGols` retornam `Maybe` porque não existe maior goleada nem média de gols quando a lista está vazia.
 
-## 6. Campeonato de teste
+Em `maiorGoleada`, utilizamos um `foldr` iniciado com `Nothing`. Quando duas partidas têm a mesma diferença de gols, a função mantém a primeira da lista.
 
-A issue #03 prevê dois conjuntos separados: resultados reais da Série A 2024 e um campeonato
-controlado para testes. O enunciado exige pelo menos seis times e cinco rodadas, mas não exige
-um turno fechado. O dataset real está em `data/brasileirao-2024.csv`; a fonte e a transformação
-estão documentadas no README. Nenhum resultado fictício foi incluído nesse arquivo.
+`mediaGols []` devolve `Nothing`, evitando divisão por zero. Para consultar uma tabela intermediária, utilizamos `ateRodada` antes de chamar `classificacao`.
 
-Para permitir a conferência à mão e exercitar os desempates, a equipe montou um
-**campeonato fictício com seis clubes da Série A 2024** (Botafogo,
-Palmeiras, Fortaleza, Flamengo, Internacional e Cruzeiro), em turno único de 5 rodadas gerado pelo
-método do círculo. A tabela de mandos foi equilibrada: cada time joga 2 ou 3 vezes em casa.
+## 4. Leitura e validação
 
-Os placares foram escolhidos para exercitar cada critério de desempate:
+### Entrada e separação dos campos
 
-- **Vitórias decidem:** Fortaleza (2 V) fica à frente do Flamengo (1 V), embora o Flamengo esteja
-  invicto e tenha saldo melhor (+2 contra -2). Isso prova que vitórias vêm antes do saldo.
-- **Gols marcados decidem:** Internacional e Cruzeiro empatam em pontos, vitórias e saldo (-4). O
-  Internacional fica à frente com 7 gols contra 5, ao contrário da ordem alfabética. Isso prova
-  que o critério alfabético não é o que decide.
-- **Saldo decide:** após a rodada 3, Palmeiras (+4) e Botafogo (+2) têm 6 pontos e 2 vitórias.
-  O líder da rodada 3 (Palmeiras) não é o campeão (Botafogo).
+Cada partida é descrita por cinco campos separados por ponto e vírgula. A função `separar` utiliza `foldr` para dividir a linha e preservar campos vazios.
 
-O mesmo campeonato está em `Dados.hs` (como `String`), `data/campeonato-teste.csv` e
-`data/teste.txt`. Os testes comparam as partidas lidas dos três formatos.
+Ignoramos linhas em branco e comentários iniciados por `#`. Os espaços nas extremidades dos campos também são removidos, inclusive o caractere `\r`, comum em arquivos do Windows.
 
-## 7. Como cada armadilha do enunciado foi evitada
+Mantemos a numeração original das linhas para que os erros indiquem a posição correta no arquivo, mesmo quando existem comentários ou linhas vazias.
 
-| Armadilha | Como foi evitada |
-|---|---|
-| Partida como tupla | `Partida` e `Linha` são *records* com campos nomeados. |
-| Resultado como `String` ou `Int` | `Resultado` é um tipo soma. Compila sem avisos de padrões incompletos com `-Wall`. |
-| `head`, `maximum` ou `foldr1` em lista possivelmente vazia | Nenhuma função parcial em `src/`. `maiorGoleada` e `mediaGols` devolvem `Maybe`; `empatesEmPontos` usa `drop 1`; a largura da tabela é um `foldr` com valor inicial. |
-| Aproveitamento com `div` ou `/` entre `Int` | `fromIntegral` antes de `(/)`, e 0 para quem não jogou. |
-| Ordenar só por pontos ou encadear vários `sortBy` | Um único `sortBy`, usando `criteriosDoCampeonato` e comparações combinadas por `<>`. |
-| Recursão explícita no lugar de `map`, `filter` ou dobra | Não há recursão explícita em nenhum módulo do projeto. |
-| `read` para converter o placar | `readMaybe` em `Integer`, depois de validar os algarismos e antes de conferir o limite de `Int`. |
-| `case` aninhados sobre `Either` | `do` na mônada `Either` em `lerPartida` e `lerCampeonato`; `traverse` para a lista. |
-| `getLine` no `main` | Os dados ficam em `Dados.hs`. O arquivo é opcional e lido com `try`. |
-| Campeonato vazio | `lerCampeonato` de um texto vazio ou só com comentários devolve `Right []`. A tabela, as estatísticas e a formatação respondem sem erro, como mostram a seção "Robustez" da saída e os testes. |
+### Conversão de números
 
-Todas as entradas inválidas testadas viraram `Left` com a linha ou a rodada do problema. Os testes
-incluíram arquivo inexistente, diretório, arquivo vazio, bytes aleatórios, quebras de linha CRLF,
-campos vazios, separador sobrando, `+3`, `3.0`, `(3)`, `0x10` e números enormes.
+A função `lerInteiro` utiliza `readMaybe`, e não `read`, para evitar exceções em entradas como `dois` ou `2a`.
 
-## 8. Limitações conhecidas
+Antes da conversão, verificamos se o texto contém somente algarismos, com sinal negativo opcional. A leitura é feita como `Integer` e só depois convertida para `Int`, desde que o número esteja dentro do intervalo permitido.
 
-1. **Desempate adaptado.** Confronto direto está implementado para dois clubes empatados em
-   pontos, com ida e volta disponíveis. O CSV não contém cartões; a extensão aceita registros
-   por rodada, mas não há base real versionada. A ordem alfabética apenas apresenta os empates
-   pendentes. A classificação real de 2024 não depende dessa substituição.
-2. **Nomes de times são comparados exatamente.** `Flamengo` e `flamengo` são times diferentes. Só
-   os espaços das pontas são removidos; não há normalização de maiúsculas, acentos ou espaços
-   internos.
-3. **Primeiro erro ou relatório completo.** `lerPartida` informa o primeiro erro. `todosOsErros`
-   acumula problemas independentes; uma regra que depende de um campo ilegível não é inferida.
-4. **A escalação repetida indica a rodada, e não as linhas.** `todosOsErros` considera nomes
-   conhecidos e rodadas válidas, inclusive quando o placar da linha está errado.
-5. **A estrutura do campeonato não é validada.** O programa não verifica se as rodadas são
-   consecutivas, se todos os times jogam em todas as rodadas ou quantas vezes dois times se
-   enfrentam. O returno é permitido, mas um terceiro jogo entre os mesmos times também seria.
-6. **O campo `jogos` de `Linha` é redundante** (igual a V + E + D), mas foi exigido pelo
-   enunciado. A consistência é garantida porque, no programa, uma `Linha` só é construída por
-   `linhaVazia` e `somarPartida`. O construtor continua exportado, porque os testes precisam dele.
-7. **A validação só vale para dados lidos de texto.** O construtor `Partida` é exportado, então
-   o código pode criar uma partida inválida (com gols negativos, por exemplo) sem passar por
-   `lerPartida`.
-8. **A tabela parcial mostra só os times que já jogaram.** Um time que só estreia depois da rodada
-   `n` não aparece em `classificacao (ateRodada n ...)`.
-9. **Eficiência.** `nub` (em `times` e nos erros de rodada) e `inits` são O(n²), e a dobra não é
-   estrita. Para um campeonato real (380 partidas), isso é instantâneo, mas o código não foi
-   pensado para milhões de linhas.
-10. **Acentos e codificação.** A saída é ASCII (veja a seção 5). Nomes com acento lidos de um
-    arquivo são aceitos e processados, mas podem aparecer com caracteres trocados num console
-    Windows que não use UTF-8. Um arquivo salvo **com BOM** tem a primeira linha recusada
-    (`CamposInvalidos` se o primeiro registro for um comentário, ou `NumeroInvalido` se for
-    uma partida), porque o BOM fica grudado no primeiro campo. O arquivo deve ser salvo
-    como UTF-8 sem BOM ou ASCII.
-11. **O arquivo é lido inteiro na memória** antes do processamento. Isso é necessário para que
-    os erros de leitura sejam capturados pelo `try`.
-12. **Detalhes numéricos.** Zeros à esquerda são aceitos (`007` vale 7), e o sinal `+` não é
-    aceito. `formatarDecimal` usa `round`, que arredonda para o par mais próximo
-    (`0.125` → `0,12`). Isso só afeta a exibição, nunca os cálculos.
+Essa validação também impede que formatos como `(3)` ou `0x10`, que podem ser aceitos como literais Haskell, sejam tratados como placares válidos.
 
-## 9. Ambiente e dependências
+Mantivemos o sinal negativo na leitura para que valores como `-1` sejam reconhecidos e possam gerar mensagens específicas de placar ou rodada inválida.
 
-- **Linguagem:** Haskell 2010, sem extensões.
-- **Compilador:** GHC 9.10.3. A revisão pré-merge foi validada no Ubuntu 26.04.1 LTS (WSL 2,
-  x86_64), sem opções especiais do Clang. A instalação nativa do Windows 11 apresenta falhas
-  documentadas no README. O playground não foi usado.
-- **Bibliotecas:** apenas a `base`:
-  - `Data.List`, `Data.Char`, `Data.Maybe`, `Data.Either`, `Data.Ord` e `Text.Read`, nas camadas;
-  - `System.Environment` e `Control.Exception`, só no `main`, para a leitura opcional de arquivo;
-  - `System.Exit`, só nos testes, para o código de saída.
-- **Avisos:** nenhum na compilação de aplicação e testes com `-Wall -Werror`.
-- **Validação final:** 119 testes aprovados no executável e dez cenários de integração no
-  Ubuntu/WSL. Foi necessário `-fforce-recomp` na aplicação para substituir objetos antigos
-  após uma falha de segmentação. Os comandos estão no README; não dependem do cache do GHCup.
-- **Versionamento:** Git e GitHub. As convenções estão em `docs/contribuicao.md`.
+### `Either` e relatório de erros
 
-## 10. Histórico de decisões
+`lerPartida` utiliza um bloco `do` com `Either`. Cada validação pode devolver `Left Erro`, interrompendo o processamento da linha no primeiro problema.
 
-| ID | Decisão | Justificativa | Status |
-|---|---|---|---|
-| D01 | Organizar o sistema em três camadas (módulos) | Separação de responsabilidades e testes por camada | Implementada |
-| D02 | Tipos algébricos e *records*; `Linha` só com contagens | Clareza; pontos e saldo nunca ficam inconsistentes | Implementada |
-| D03 | Funções de ordem superior, sem recursão explícita | Requisito da Camada 2; os padrões de recursão têm nome | Implementada |
-| D04 | `Maybe` e `Either` para ausência e erros | Funções totais, sem exceções | Implementada |
-| D05 | Dataset real separado do campeonato controlado da equipe | Atender à issue #03 e preservar os testes conferidos à mão | Implementada |
-| D06 | Pontos, vitórias, saldo, gols pró, confronto direto e ordem alfabética | Aplicar os critérios disponíveis; cartões e sorteio permanecem como limitação | Implementada com adaptação |
-| D07 | `foldr` em `linhaDoTime` | No `Prelude` de toda versão do GHC; soma associativa | Implementada |
-| D08 | `Erro` com `RodadaInvalida` e `TimeVazio`, além dos 5 exigidos | Mensagens precisas para rodada ≤ 0 e nome em branco | Implementada |
-| D09 | Validação numérica estrita (algarismos, `Integer` e limite de `Int`) | `readMaybe` sozinho aceitava `(3)` e `0x10` e estourava `Int` | Implementada |
-| D10 | Saída somente em ASCII | A codificação CP437 derrubava o programa ao imprimir `ã` | Implementada |
-| D11 | Leitura opcional de arquivo pelo `main`, com `try` | Usar `data/teste.txt` sem violar a regra de nenhuma exceção | Implementada |
-| D12 | Lista `criterios` nomeada e `criterioDecisivo` | Fonte única dos critérios; explica cada desempate | Implementada |
-| D13 | Cartões opcionais por rodada, com `Maybe` e estados de desempate | Distinguir ausência de zero, evitar dados futuros e não inventar sorteio | Implementada; sem base disciplinar real |
+`lerCampeonato` utiliza `traverse` para processar as partidas e depois confere se algum clube aparece mais de uma vez na mesma rodada.
+
+Criamos também `todosOsErros`, porque o trabalho exige um relatório completo. Diferentemente de `lerCampeonato`, essa função reúne os problemas independentes encontrados no texto. Assim, uma mesma linha pode apresentar, por exemplo, um número inválido e um confronto do time contra ele próprio.
+
+Os construtores obrigatórios de `Erro` são:
+
+- `CamposInvalidos`;
+- `NumeroInvalido`;
+- `PlacarNegativo`;
+- `MesmoTime`;
+- `TimeRepetidoNaRodada`.
+
+Acrescentamos `RodadaInvalida` e `TimeVazio` para dar mensagens mais específicas nesses casos.
+
+### Formatação
+
+`tabelaFormatada` produz as colunas exigidas pelo enunciado e também apresenta gols pró, gols contra e aproveitamento. As colunas são descritas por título, largura e função de formatação, o que facilita mudanças na apresentação.
+
+As mensagens impressas pelo programa foram mantidas em ASCII. Durante o desenvolvimento, encontramos um problema de codificação no console Windows, que não conseguia imprimir alguns caracteres acentuados. Essa decisão evita o problema nesse ambiente, embora os comentários e a documentação continuem escritos normalmente em português.
+
+## 5. Campeonatos usados nos testes
+
+### Campeonato controlado
+
+Criamos um campeonato com seis clubes da Série A 2024, cinco rodadas e quinze partidas, organizado em turno único pelo método do círculo.
+
+Escolhemos os placares para testar situações específicas:
+
+- Um empate de 0 a 0 e vitórias com diferença de pelo menos três gols;
+- Fortaleza e Flamengo empatados em pontos, com a posição decidida por vitórias;
+- Internacional e Cruzeiro empatados em pontos, vitórias e saldo, com decisão pelos gols marcados;
+- Palmeiras e Botafogo empatados após a terceira rodada, com decisão pelo saldo;
+- Uma liderança intermediária diferente da classificação final.
+
+O mesmo campeonato foi mantido em `Dados.hs`, `data/campeonato-teste.csv` e `data/teste.txt`. Com isso, conseguimos comparar a leitura dos arquivos com os valores definidos no código.
+
+### Dados reais
+
+Também utilizamos as 380 partidas do Brasileirão Série A 2024, registradas em `data/brasileirao-2024.csv`. A origem e a transformação dos dados estão indicadas no README.
+
+Os testes verificam as partidas, a quantidade de clubes e rodadas, os gols marcados e as vinte linhas da classificação final, comparadas com a tabela publicada pela CBF.
+
+## 6. Testes e ambiente de execução
+
+Os **119 testes** estão organizados em cinco grupos: Camada 1 (14), Camada 2 (29), Camada 3 (37), desempates e disciplina (31) e integração dos arquivos (8).
+
+Os testes cobrem as funções obrigatórias, os desempates, os construtores de `Erro`, entradas inválidas, listas vazias e os dois campeonatos utilizados no projeto.
+
+Na revisão de 25/11/2026, a aplicação e os testes foram compilados com **GHC 9.10.3 no Ubuntu 26.04.1 LTS (WSL 2)**, usando `-Wall -Werror`. Os 119 testes foram aprovados, assim como dez cenários de integração. Esses são os resultados registrados na revisão; os comandos para reproduzi-los estão no README.
+
+Na instalação nativa do Windows, encontramos problemas com o Clang. Também ocorreu uma falha ao reaproveitar arquivos de compilação antigos, resolvida com `-fforce-recomp`. Por isso, recomendamos recompilar os módulos ao alternar entre ambientes.
+
+O projeto utiliza apenas a biblioteca `base`, com módulos como `Data.List`, `Data.Maybe`, `Data.Either`, `Data.Ord`, `Data.Char` e `Text.Read`. O `main` também usa `System.Environment` e `Control.Exception` para a leitura opcional de arquivos; os testes utilizam `System.Exit`.
+
+## 7. Limitações conhecidas
+
+1. **Desempate:** os arquivos de partidas não possuem cartões nem resultados de sorteio. A classificação principal apresenta empates restantes em ordem alfabética, sem afirmar que essa é a posição oficial.
+2. **Nomes dos times:** `Flamengo` e `flamengo` são interpretados como nomes diferentes. A leitura remove apenas espaços nas extremidades.
+3. **Estrutura das rodadas:** não verificamos se as rodadas são consecutivas, se todos os clubes disputam o mesmo número de jogos ou se dois clubes se enfrentam mais vezes do que deveriam.
+4. **Tabela intermediária:** clubes que ainda não disputaram partidas não aparecem na classificação parcial.
+5. **Validação:** as verificações de placar e escalação são aplicadas ao texto lido. Como o construtor `Partida` é exportado, outro módulo ainda pode criar valores inválidos diretamente.
+6. **Relatório de erros:** `lerCampeonato` para no primeiro erro, enquanto `todosOsErros` identifica problemas independentes. Nem toda verificação pode ser feita quando um campo necessário é ilegível.
+7. **Codificação:** a saída usa ASCII. Arquivos UTF-8 com BOM não são tratados automaticamente; nomes acentuados podem aparecer incorretamente em consoles Windows sem configuração adequada.
+8. **Memória e desempenho:** o programa lê todo o arquivo antes de processá-lo. `nub` e `inits` também não são escolhas voltadas a bases com milhões de registros, embora atendam ao tamanho deste trabalho.
+9. **Representação:** o campo `jogos` de `Linha` repete uma informação que poderia ser obtida por vitórias, empates e derrotas. Foi mantido porque aparece no enunciado.
+10. **Valores numéricos:** zeros à esquerda são aceitos, mas o sinal `+` não. `formatarDecimal` utiliza o arredondamento de `round`, que afeta apenas a exibição.
+
+## 8. Resumo das decisões
+
+| Decisão                                        | Motivo                                                                 |
+| ---------------------------------------------- | ---------------------------------------------------------------------- |
+| Divisão em três camadas                        | Separar tipos, cálculos e validação, conforme o enunciado              |
+| Records e tipos algébricos                     | Tornar os dados e os resultados mais claros                            |
+| `Maybe` e `Either`                             | Tratar ausência de informação e erros sem valores artificiais          |
+| `filter`, `map` e `foldr`                      | Trabalhar com listas sem recursão explícita                            |
+| `sortBy`, `comparing`, `Down` e `<>`           | Aplicar critérios de classificação em ordem                            |
+| Campeonato controlado e dataset real separados | Facilitar a conferência manual e a validação com resultados publicados |
+| Cartões como extensão opcional                 | Preservar a assinatura obrigatória e não inventar dados disciplinares  |
+| Validação numérica com `readMaybe` e `Integer` | Evitar exceções e estouro de `Int`                                     |
+| Saída ASCII                                    | Evitar falhas de codificação observadas no console                     |
+| Leitura opcional de arquivo                    | Permitir execução com `Dados.hs` e com CSV no GHC local                |
