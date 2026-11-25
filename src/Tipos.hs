@@ -95,13 +95,13 @@ resultadoDoPlacar marcados sofridos = case compare marcados sofridos of
   EQ -> Empate
   LT -> Derrota
 
--- | Cartões amarelos de um time em uma partida sem registro disciplinar explícito (0).
-amarelosNaPartida :: Time -> Partida -> Int
-amarelosNaPartida _ _ = 0
+-- | O CSV de partidas não informa cartões.
+amarelosNaPartida :: Time -> Partida -> Maybe Int
+amarelosNaPartida _ _ = Nothing
 
--- | Cartões vermelhos de um time em uma partida sem registro disciplinar explícito (0).
-vermelhosNaPartida :: Time -> Partida -> Int
-vermelhosNaPartida _ _ = 0
+-- | A ausência de registro não equivale a zero cartões.
+vermelhosNaPartida :: Time -> Partida -> Maybe Int
+vermelhosNaPartida _ _ = Nothing
 
 -- | Todos os times do campeonato, sem repetição e em ordem alfabética.
 times :: [Partida] -> [Time]

@@ -9,7 +9,7 @@
 -}
 module Main (main) where
 
-import Data.List (find)
+import Data.List (find, permutations)
 import Data.Maybe (fromMaybe)
 import System.Exit (exitFailure, exitSuccess)
 
@@ -215,8 +215,8 @@ testesCamada1 =
       ["Botafogo", "Cruzeiro", "Flamengo", "Fortaleza", "Internacional", "Palmeiras"]
   , testar "times de um campeonato sem partidas e []"
       (times []) []
-  , testar "cartoes sem registro explicito retornam 0"
-      (amarelosNaPartida "Botafogo" jogoFora, vermelhosNaPartida "Botafogo" jogoFora) (0, 0)
+  , testar "cartoes sem registro explicito sao desconhecidos"
+      (amarelosNaPartida "Botafogo" jogoFora, vermelhosNaPartida "Botafogo" jogoFora) (Nothing, Nothing)
     -- requisitos mínimos do campeonato de teste
   , testar "campeonato de teste: 6 times, 5 rodadas e 15 partidas"
       (length (times partidasDeTeste), ultimaRodada partidasDeTeste, length partidasDeTeste)
@@ -325,9 +325,10 @@ partidasConfrontoIncompleto =
   [ Partida 1 "Z" 1 0 "A"
   , Partida 2 "A" 1 0 "C", Partida 2 "Z" 0 1 "D"
   , Partida 3 "A" 1 0 "D", Partida 3 "Z" 0 1 "C"
+  , Partida 4 "Z" 1 0 "E", Partida 4 "A" 0 1 "F"
   ]
 
--- Empate entre 3 clubes em pontos (9 pts), vitorias (3) e saldo (+2),
+-- Empate entre 3 clubes em pontos (9 pts), vitorias (3) e saldo (+4),
 -- separados por gols marcados (X: 8 GP, Y: 7 GP, W: 6 GP).
 partidasTresClubes :: [Partida]
 partidasTresClubes =
@@ -363,29 +364,109 @@ testesCriteriosEDisciplina =
         (linhaDoTime partidasConfrontoIncompleto "Z")
         (linhaDoTime partidasConfrontoIncompleto "A"))
       (Just "ordem alfabetica")
-  , testar "empate identico em todos os criterios objetivos depende de sorteio / desempate final"
-      (empateDependeDeSorteio [Partida 1 "A" 1 1 "B"]
-        (linhaDoTime [Partida 1 "A" 1 1 "B"] "A")
-        (linhaDoTime [Partida 1 "A" 1 1 "B"] "B"))
+  , testar "empate com ida e volta e cartoes conhecidos iguais depende de sorteio"
+      (empateDependeDeSorteio partidasEmpatadas registrosZerados a b)
       True
   , testar "cartoes amarelos e vermelhos sao contabilizados por clube"
-      ( totalAmarelos registrosDisciplinares "Botafogo"
-      , totalVermelhos registrosDisciplinares "Botafogo"
+      ( totalCartoesAmarelos registrosDisciplinares "Botafogo"
+      , totalCartoesVermelhos registrosDisciplinares "Botafogo"
       )
-      (3, 1)
-  , testar "ausencia de dados disciplinares retorna zero sem falhar"
-      ( totalAmarelos [] "Botafogo"
-      , totalVermelhos [] "Botafogo"
-      , cartoesDoTime [] "Botafogo"
+      (Just 3, Just 1)
+  , testar "ausencia de dados disciplinares nao equivale a zero"
+      ( totalCartoesAmarelos [] "Botafogo"
+      , totalCartoesVermelhos [] "Botafogo"
       )
-      (0, 0, Cartoes 0 0)
+      (Nothing, Nothing)
+  , testar "zero cartoes informado explicitamente e Just 0"
+      (totalCartoesVermelhos registrosZerados "A") (Just 0)
+  , testar "cartoes negativos invalidam a contagem"
+      (totalCartoesAmarelos [RegistroCartoes 1 "A" (-1) 2] "A") Nothing
+  , testar "amarelos negativos tambem invalidam a contagem"
+      (totalCartoesVermelhos [RegistroCartoes 1 "A" 0 (-1)] "A") Nothing
+  , testar "rodada disciplinar invalida nao gera total"
+      (totalCartoesVermelhos [RegistroCartoes 0 "A" 0 0] "A") Nothing
+  , testar "clube em branco nao gera total"
+      (totalCartoesAmarelos [RegistroCartoes 1 " " 0 0] " ") Nothing
+  , testar "registros duplicados nao sao somados"
+      (totalCartoesAmarelos [RegistroCartoes 1 "A" 0 1, RegistroCartoes 1 "A" 0 2] "A") Nothing
+  , testar "soma de cartoes que excede Int e recusada"
+      (totalCartoesAmarelos [RegistroCartoes 1 "A" 0 maxBound, RegistroCartoes 2 "A" 0 1] "A") Nothing
+  , testar "vermelhos decidem antes dos amarelos"
+      (map time (classificacaoComDisciplina partidasEmpatadas registrosVermelhos),
+       criterioDecisivoComDisciplina partidasEmpatadas registrosVermelhos a b)
+      (["B", "A"], Just "menores cartoes vermelhos")
+  , testar "amarelos decidem com vermelhos iguais"
+      (map time (classificacaoComDisciplina partidasEmpatadas registrosAmarelos),
+       criterioDecisivoComDisciplina partidasEmpatadas registrosAmarelos a b)
+      (["B", "A"], Just "menores cartoes amarelos")
+  , testar "sem registros o status indica dados indisponiveis"
+      (statusDesempate partidasEmpatadas [] a b) DadosDisciplinaresIndisponiveis
+  , testar "sem registros nao se afirma necessidade de sorteio"
+      (empateDependeDeSorteio partidasEmpatadas [] a b) False
+  , testar "cobertura parcial de rodadas nao decide por disciplina"
+      (statusDesempate partidasEmpatadas (filter ((== 2) . rodadaDisciplina) registrosVermelhos) a b)
+      DadosDisciplinaresIndisponiveis
+  , testar "ausencia dos dados de um clube nao favorece esse clube"
+      (map time (classificacaoComDisciplina partidasEmpatadas (filter ((== "A") . clubeDisciplina) registrosVermelhos)))
+      ["A", "B"]
+  , testar "sorteio pendente conserva ordem de apresentacao e nao inventa criterio"
+      (map time (classificacaoComDisciplina partidasEmpatadas registrosZerados),
+       criterioDecisivoComDisciplina partidasEmpatadas registrosZerados a b)
+      (["A", "B"], Nothing)
+  , testar "confronto incompleto realmente empata nos quatro primeiros criterios"
+      (map (\l -> (pontosLinha l, vitorias l, saldo l, golsPro l))
+        [linhaDoTime partidasConfrontoIncompleto "A", linhaDoTime partidasConfrontoIncompleto "Z"])
+      [(6, 2, 0, 2), (6, 2, 0, 2)]
+  , testar "confronto incompleto permanece pendente mesmo com cartoes"
+      (statusDesempate partidasConfrontoIncompleto (zerarCartoes partidasConfrontoIncompleto)
+        (linhaDoTime partidasConfrontoIncompleto "A") (linhaDoTime partidasConfrontoIncompleto "Z"))
+      ConfrontoDiretoIncompleto
+  , testar "confronto direto decide antes de cartoes desfavoraveis"
+      (criterioDecisivoComDisciplina partidasConfronto
+        (map (\r -> r {cartoesVermelhos = if clubeDisciplina r == "Z" then 2 else 0})
+          (zerarCartoes partidasConfronto))
+        (linhaDoTime partidasConfronto "A") (linhaDoTime partidasConfronto "Z"))
+      (Just "confronto direto")
+  , testar "classificacao parcial ignora cartoes de rodadas futuras"
+      (map time (classificacaoComDisciplina (ateRodada 2 partidasEmpatadas)
+        (registrosVermelhos ++ [RegistroCartoes 3 "B" 10 10]))) ["B", "A"]
+  , testar "tres clubes usam disciplina sem confronto direto"
+      (map time (classificacaoComDisciplina partidasTriplo cartoesTriplo)) ["C", "B", "A"]
+  , testar "grupo com dados incompletos conserva ordem em todas as permutacoes"
+      (map (\ps -> map time (classificacaoComDisciplina ps (filter ((/= "B") . clubeDisciplina) cartoesTriplo)))
+        (permutations partidasTriplo)) (replicate 6 ["A", "B", "C"])
+  , testar "grupo incompleto tem explicacao coerente com a ordenacao"
+      (statusDesempate partidasTriplo (filter ((/= "B") . clubeDisciplina) cartoesTriplo)
+        (linhaDoTime partidasTriplo "A") (linhaDoTime partidasTriplo "C"))
+      DadosDisciplinaresIndisponiveis
+  , testar "classificacao disciplinar vazia e segura"
+      (classificacaoComDisciplina [] []) []
   ]
   where
+    a = linhaDoTime partidasEmpatadas "A"
+    b = linhaDoTime partidasEmpatadas "B"
     registrosDisciplinares =
-      [ ("Botafogo", 2, 0)
-      , ("Palmeiras", 1, 1)
-      , ("Botafogo", 1, 1)
+      [ RegistroCartoes 1 "Botafogo" 0 2
+      , RegistroCartoes 1 "Palmeiras" 1 1
+      , RegistroCartoes 2 "Botafogo" 1 1
       ]
+    registrosZerados = zerarCartoes partidasEmpatadas
+    registrosVermelhos = map (\r -> r
+      { cartoesVermelhos = if clubeDisciplina r == "A" then 1 else 0
+      , cartoesAmarelos = if clubeDisciplina r == "B" then 4 else 0 }) registrosZerados
+    registrosAmarelos = map (\r -> r {cartoesVermelhos = 0, cartoesAmarelos =
+      if clubeDisciplina r == "A" then 2 else 0}) registrosZerados
+    partidasTriplo = [Partida 1 "A" 0 0 "B", Partida 2 "B" 0 0 "C", Partida 3 "C" 0 0 "A"]
+    cartoesTriplo = map (\r -> r {cartoesVermelhos =
+      if clubeDisciplina r == "A" then 2 else if clubeDisciplina r == "B" then 1 else 0})
+      (zerarCartoes partidasTriplo)
+
+-- Dados fictícios explícitos; zero é conhecido para cada clube e rodada.
+zerarCartoes :: [Partida] -> [RegistroCartoes]
+zerarCartoes = concatMap (\p -> [RegistroCartoes (rodada p) t 0 0 | t <- [mandante p, visitante p]])
+
+partidasEmpatadas :: [Partida]
+partidasEmpatadas = [Partida 1 "A" 1 1 "B", Partida 2 "B" 0 0 "A"]
 
 -- ---------------------------------------------------------------------
 -- Camada 3: leitura, validação e formatação
