@@ -95,7 +95,9 @@ Closes #XX
 5. Vincular a issue utilizando `Closes #numero`.
 6. Solicitar a revisão de pelo menos um integrante.
 7. Corrigir os problemas identificados antes do merge.
-8. Utilizar preferencialmente **Squash and merge**.
+8. Utilizar preferencialmente **Squash and merge**. Para o PR da branch
+   `fix/revisao-final-pjbl2`, utilizar **Create a merge commit**, preservando os commits
+   individuais. O merge depende da revisão da equipe.
 9. Excluir a branch remota após o merge.
 10. Não realizar o merge de uma funcionalidade com erros de compilação.
 

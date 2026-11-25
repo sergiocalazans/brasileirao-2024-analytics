@@ -239,7 +239,7 @@ O mesmo campeonato está em `Dados.hs` (como `String`), `data/campeonato-teste.c
 | Resultado como `String` ou `Int` | `Resultado` é um tipo soma. Compila sem avisos de padrões incompletos com `-Wall`. |
 | `head`, `maximum` ou `foldr1` em lista possivelmente vazia | Nenhuma função parcial em `src/`. `maiorGoleada` e `mediaGols` devolvem `Maybe`; `empatesEmPontos` usa `drop 1`; a largura da tabela é um `foldr` com valor inicial. |
 | Aproveitamento com `div` ou `/` entre `Int` | `fromIntegral` antes de `(/)`, e 0 para quem não jogou. |
-| Ordenar só por pontos ou encadear vários `sortBy` | Um único `sortBy compararLinhas`, com os critérios combinados por `<>`. |
+| Ordenar só por pontos ou encadear vários `sortBy` | Um único `sortBy`, usando `criteriosDoCampeonato` e comparações combinadas por `<>`. |
 | Recursão explícita no lugar de `map`, `filter` ou dobra | Não há recursão explícita em nenhum módulo do projeto. |
 | `read` para converter o placar | `readMaybe` em `Integer`, depois de validar os algarismos e antes de conferir o limite de `Int`. |
 | `case` aninhados sobre `Either` | `do` na mônada `Either` em `lerPartida` e `lerCampeonato`; `traverse` para a lista. |
@@ -291,7 +291,9 @@ campos vazios, separador sobrando, `+3`, `3.0`, `(3)`, `0x10` e números enormes
 ## 9. Ambiente e dependências
 
 - **Linguagem:** Haskell 2010, sem extensões.
-- **Compilador:** GHC 9.10.3 local, instalado via GHCup (Windows 11). O playground não foi usado.
+- **Compilador:** GHC 9.10.3. A revisão pré-merge foi validada no Ubuntu 26.04.1 LTS (WSL 2,
+  x86_64), sem opções especiais do Clang. A instalação nativa do Windows 11 apresenta falhas
+  documentadas no README. O playground não foi usado.
 - **Bibliotecas:** apenas a `base`:
   - `Data.List`, `Data.Char`, `Data.Maybe`, `Data.Either`, `Data.Ord` e `Text.Read`, nas camadas;
   - `System.Environment` e `Control.Exception`, só no `main`, para a leitura opcional de arquivo;
@@ -299,9 +301,9 @@ campos vazios, separador sobrando, `+3`, `3.0`, `(3)`, `0x10` e números enormes
 - **Avisos:** nenhum, com `-Wall`. O código também passa por
   `-Werror -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields
   -Wredundant-constraints -Wmissing-export-lists`.
-- **Validação local da revisão:** 86 testes aprovados no executável compilado. A instalação
-  ativa do Clang estava incompleta; o README registra as opções usadas para aproveitar a cópia
-  completa do cache, sem alterar o ambiente.
+- **Validação pré-merge:** 86 testes aprovados no executável e no `runghc`, além de dez cenários
+  de integração no Ubuntu/WSL. Aplicação e testes compilados com `-Wall -Werror`. A validação
+  não depende do cache temporário do GHCup.
 - **Versionamento:** Git e GitHub. As convenções estão em `docs/contribuicao.md`.
 
 ## 10. Histórico de decisões

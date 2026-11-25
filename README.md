@@ -5,7 +5,8 @@ resultados das partidas, recebidos como texto. Ele responde perguntas como *"que
 da 3ª rodada?"* e *"como um empate em pontos é desempatado?"*, mostra estatísticas do campeonato e
 rejeita entradas com erros de digitação com uma mensagem útil, sem nunca encerrar com exceção.
 
-> **Ambiente utilizado:** GHC **9.10.3** local, instalado via **GHCup** (Windows 11).
+> **Ambientes verificados:** GHC **9.10.3** no Windows 11 e no Ubuntu **26.04.1 LTS**, via WSL 2.
+> Para reproduzir a validação pré-merge, use o Ubuntu/WSL; a instalação nativa do Windows precisa de reparo.
 > O playground (play.haskell.org) **não** foi usado. O projeto depende só da biblioteca `base`.
 
 ## Integrantes
@@ -107,27 +108,29 @@ Depois execute `.\build\tabela.exe` e `.\build\testes.exe` no Windows, ou `./bui
 conferido também com `-Werror -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns
 -Wpartial-fields -Wredundant-constraints`.
 
-### Observação sobre o GHC local da revisão
+### Validação pré-merge no Ubuntu/WSL
 
-Na revisão de 25/11/2026, o GHC 9.10.3 compilou os módulos, mas a instalação ativa do Clang
-estava incompleta (`x86intrin.h` e bibliotecas ausentes). Foi possível gerar os executáveis sem
-avisos usando a cópia completa já existente no cache do GHCup:
+Na revisão de 25/11/2026, a aplicação e os testes compilaram sem avisos com GHC 9.10.3,
+no Ubuntu 26.04.1 LTS (x86_64), via WSL 2. Na raiz do projeto, execute:
 
-```powershell
-$clangRevisao = 'C:/ghcup/tmp/ghcup-16afaa366449961d/ghcup/ghc/9.10.3/mingw'
-$opcoesRevisao = @('-Wall', '-Werror', '-isrc',
-  "-optc-resource-dir=$clangRevisao/lib/clang/14.0.6",
-  "-optl-resource-dir=$clangRevisao/lib/clang/14.0.6", "-optl-L$clangRevisao/lib")
-ghc @opcoesRevisao -outputdir build/obj-app -o build/tabela src/Main.hs
-ghc @opcoesRevisao -outputdir build/obj-testes -o build/testes tests/Testes.hs
-.\build\testes.exe
-.\build\tabela.exe data/brasileirao-2024.csv
+```bash
+mkdir -p build
+ghc -Wall -Werror -isrc src/Main.hs -o build/brasileirao
+ghc -Wall -Werror -isrc -outputdir build/obj-testes tests/Testes.hs -o build/testes
+./build/testes
+./build/brasileirao data/campeonato-teste.csv
+./build/brasileirao data/brasileirao-2024.csv
 ```
 
-Esse caminho é específico desta máquina e pode desaparecer ao limpar o cache. Em uma instalação
-completa do GHC, use os comandos normais acima. O interpretador local apresentou uma falha nativa
-ao ler arquivos; nesta máquina, a validação dos arquivos foi feita com os executáveis compilados.
-A instalação do compilador não foi alterada pela revisão.
+Os 86 testes passaram no executável e com `runghc -isrc tests/Testes.hs`. Foram verificados
+também dez cenários de execução: dados embutidos, CSV controlado, arquivo original, CSV real,
+arquivo vazio, entrada inválida, arquivo inexistente, diretório, bytes inválidos e nomes acentuados.
+
+No Windows nativo, o comando normal ainda falha por arquivos ausentes na instalação do Clang
+(`x86intrin.h`). A revisão anterior usou uma cópia temporária do cache do GHCup; esse caminho
+não é requisito de execução. Use o WSL validado acima ou repare a instalação nativa antes da
+apresentação. A revisão pré-merge não alterou a instalação do compilador. Docker, macOS e
+playground não foram testados nesta revisão.
 
 ## Formato da entrada
 
