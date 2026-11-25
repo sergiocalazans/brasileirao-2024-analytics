@@ -1,0 +1,382 @@
+# Brasileirao Serie A 2024: resultados reais
+# rodada;mandante;gols mandante;gols visitante;visitante
+1;Internacional;2;1;Bahia
+1;Cruzeiro;3;2;Botafogo-RJ
+1;Vitoria;0;1;Palmeiras
+1;Fluminense;2;2;Bragantino
+1;Vasco;2;1;Gremio
+1;Corinthians;0;0;Atletico-MG
+1;Sao Paulo;1;2;Fortaleza
+1;Athletico-PR;4;0;Cuiaba
+1;Atletico-GO;1;2;Flamengo
+1;Criciuma;1;1;Juventude
+2;Gremio;2;0;Athletico-PR
+2;Atletico-MG;1;1;Criciuma
+2;Bahia;2;1;Fluminense
+2;Flamengo;2;1;Sao Paulo
+2;Botafogo-RJ;1;0;Atletico-GO
+2;Palmeiras;0;1;Internacional
+2;Bragantino;2;1;Vasco
+2;Fortaleza;1;1;Cruzeiro
+2;Juventude;2;0;Corinthians
+2;Cuiaba;0;0;Vitoria
+3;Gremio;1;0;Cuiaba
+3;Atletico-MG;3;0;Cruzeiro
+3;Vitoria;2;2;Bahia
+3;Fluminense;2;1;Vasco
+3;Botafogo-RJ;5;1;Juventude
+3;Palmeiras;0;0;Flamengo
+3;Bragantino;1;0;Corinthians
+3;Athletico-PR;1;0;Internacional
+3;Atletico-GO;0;3;Sao Paulo
+3;Criciuma;1;1;Fortaleza
+4;Internacional;1;1;Atletico-GO
+4;Cruzeiro;3;1;Vitoria
+4;Bahia;1;0;Gremio
+4;Flamengo;0;2;Botafogo-RJ
+4;Vasco;0;4;Criciuma
+4;Corinthians;3;0;Fluminense
+4;Sao Paulo;0;0;Palmeiras
+4;Fortaleza;1;1;Bragantino
+4;Cuiaba;0;3;Atletico-MG
+4;Juventude;1;1;Athletico-PR
+5;Vitoria;1;3;Sao Paulo
+5;Fluminense;2;2;Atletico-MG
+5;Botafogo-RJ;1;2;Bahia
+5;Corinthians;0;0;Fortaleza
+5;Bragantino;1;1;Flamengo
+5;Athletico-PR;1;0;Vasco
+5;Cuiaba;0;2;Palmeiras
+5;Juventude;1;0;Atletico-GO
+5;Cruzeiro;0;0;Internacional
+5;Gremio;1;2;Criciuma
+6;Bahia;1;0;Bragantino
+6;Flamengo;2;0;Corinthians
+6;Vasco;2;1;Vitoria
+6;Palmeiras;0;2;Athletico-PR
+6;Sao Paulo;2;1;Fluminense
+6;Fortaleza;1;1;Botafogo-RJ
+6;Atletico-GO;0;1;Cruzeiro
+6;Criciuma;2;5;Cuiaba
+6;Internacional;2;1;Juventude
+6;Atletico-MG;2;1;Gremio
+7;Criciuma;1;2;Palmeiras
+7;Cuiaba;0;1;Internacional
+7;Fortaleza;1;0;Athletico-PR
+7;Corinthians;0;1;Botafogo-RJ
+7;Vasco;1;6;Flamengo
+7;Fluminense;1;1;Juventude
+7;Atletico-MG;1;1;Bahia
+7;Gremio;0;2;Bragantino
+7;Sao Paulo;2;0;Cruzeiro
+7;Vitoria;0;2;Atletico-GO
+8;Palmeiras;2;0;Vasco
+8;Bragantino;1;2;Atletico-MG
+8;Athletico-PR;3;1;Criciuma
+8;Atletico-GO;2;2;Corinthians
+8;Botafogo-RJ;1;0;Fluminense
+8;Flamengo;2;1;Gremio
+8;Bahia;1;0;Fortaleza
+8;Cruzeiro;2;1;Cuiaba
+8;Internacional;0;0;Sao Paulo
+8;Juventude;1;1;Vitoria
+9;Gremio;1;2;Botafogo-RJ
+9;Atletico-MG;0;4;Palmeiras
+9;Vitoria;2;1;Internacional
+9;Fluminense;1;2;Atletico-GO
+9;Vasco;0;0;Cruzeiro
+9;Corinthians;2;2;Sao Paulo
+9;Bragantino;2;1;Juventude
+9;Athletico-PR;1;1;Flamengo
+9;Cuiaba;5;0;Fortaleza
+9;Criciuma;2;2;Bahia
+10;Internacional;1;0;Corinthians
+10;Cruzeiro;2;0;Fluminense
+10;Vitoria;4;2;Atletico-MG
+10;Flamengo;2;1;Bahia
+10;Botafogo-RJ;1;1;Athletico-PR
+10;Palmeiras;2;1;Bragantino
+10;Sao Paulo;0;1;Cuiaba
+10;Fortaleza;1;0;Gremio
+10;Atletico-GO;1;2;Criciuma
+10;Juventude;2;0;Vasco
+11;Gremio;0;1;Internacional
+11;Atletico-MG;1;1;Fortaleza
+11;Bahia;4;1;Cruzeiro
+11;Fluminense;0;1;Flamengo
+11;Vasco;4;1;Sao Paulo
+11;Palmeiras;3;1;Juventude
+11;Bragantino;2;1;Vitoria
+11;Athletico-PR;1;1;Corinthians
+11;Cuiaba;0;0;Atletico-GO
+11;Criciuma;2;1;Botafogo-RJ
+12;Internacional;1;2;Atletico-MG
+12;Cruzeiro;2;0;Athletico-PR
+12;Bahia;2;1;Vasco
+12;Fluminense;0;1;Vitoria
+12;Botafogo-RJ;2;1;Bragantino
+12;Corinthians;1;1;Cuiaba
+12;Sao Paulo;2;1;Criciuma
+12;Fortaleza;3;0;Palmeiras
+12;Atletico-GO;1;1;Gremio
+12;Juventude;2;1;Flamengo
+13;Gremio;1;0;Fluminense
+13;Atletico-MG;1;1;Atletico-GO
+13;Vitoria;0;1;Athletico-PR
+13;Flamengo;2;1;Cruzeiro
+13;Vasco;1;1;Botafogo-RJ
+13;Palmeiras;2;0;Corinthians
+13;Sao Paulo;3;1;Bahia
+13;Fortaleza;2;1;Juventude
+13;Cuiaba;1;1;Bragantino
+13;Criciuma;1;1;Internacional
+14;Gremio;2;2;Palmeiras
+14;Atletico-MG;2;4;Flamengo
+14;Bahia;2;0;Juventude
+14;Fluminense;1;1;Internacional
+14;Vasco;2;0;Fortaleza
+14;Corinthians;3;2;Vitoria
+14;Bragantino;3;1;Atletico-GO
+14;Athletico-PR;1;2;Sao Paulo
+14;Cuiaba;1;2;Botafogo-RJ
+14;Criciuma;1;0;Cruzeiro
+15;Internacional;1;2;Vasco
+15;Cruzeiro;3;0;Corinthians
+15;Vitoria;2;1;Criciuma
+15;Flamengo;1;1;Cuiaba
+15;Botafogo-RJ;3;0;Atletico-MG
+15;Palmeiras;2;0;Bahia
+15;Sao Paulo;2;0;Bragantino
+15;Fortaleza;1;0;Fluminense
+15;Atletico-GO;1;2;Athletico-PR
+15;Juventude;3;0;Gremio
+16;Gremio;0;2;Cruzeiro
+16;Atletico-MG;2;1;Sao Paulo
+16;Vitoria;0;1;Botafogo-RJ
+16;Flamengo;1;2;Fortaleza
+16;Vasco;2;0;Corinthians
+16;Palmeiras;3;1;Atletico-GO
+16;Athletico-PR;1;3;Bahia
+16;Criciuma;1;1;Fluminense
+16;Cuiaba;0;0;Juventude
+16;Bragantino;2;2;Internacional
+17;Cruzeiro;2;1;Bragantino
+17;Bahia;1;2;Cuiaba
+17;Botafogo-RJ;1;0;Palmeiras
+17;Corinthians;2;1;Criciuma
+17;Sao Paulo;1;0;Gremio
+17;Fortaleza;3;1;Vitoria
+17;Atletico-GO;0;1;Vasco
+17;Juventude;1;1;Atletico-MG
+17;Fluminense;1;0;Athletico-PR
+17;Internacional;1;1;Flamengo
+18;Gremio;2;0;Vitoria
+18;Atletico-MG;2;0;Vasco
+18;Bahia;0;1;Corinthians
+18;Flamengo;2;1;Criciuma
+18;Botafogo-RJ;1;0;Internacional
+18;Palmeiras;2;0;Cruzeiro
+18;Bragantino;1;0;Athletico-PR
+18;Fortaleza;3;1;Atletico-GO
+18;Cuiaba;0;1;Fluminense
+18;Juventude;0;0;Sao Paulo
+19;Cruzeiro;2;0;Juventude
+19;Vitoria;1;2;Flamengo
+19;Fluminense;1;0;Palmeiras
+19;Corinthians;2;2;Gremio
+19;Sao Paulo;2;2;Botafogo-RJ
+19;Atletico-GO;1;1;Bahia
+19;Criciuma;1;0;Bragantino
+19;Vasco;1;0;Cuiaba
+19;Internacional;2;1;Fortaleza
+19;Athletico-PR;1;0;Atletico-MG
+20;Gremio;1;0;Vasco
+20;Atletico-MG;2;1;Corinthians
+20;Bahia;1;1;Internacional
+20;Flamengo;2;0;Atletico-GO
+20;Botafogo-RJ;0;3;Cruzeiro
+20;Palmeiras;0;2;Vitoria
+20;Bragantino;0;1;Fluminense
+20;Fortaleza;1;0;Sao Paulo
+20;Cuiaba;1;2;Athletico-PR
+20;Juventude;1;2;Criciuma
+21;Internacional;1;1;Palmeiras
+21;Cruzeiro;1;2;Fortaleza
+21;Vitoria;1;0;Cuiaba
+21;Fluminense;1;0;Bahia
+21;Vasco;2;2;Bragantino
+21;Corinthians;1;1;Juventude
+21;Sao Paulo;1;0;Flamengo
+21;Athletico-PR;0;2;Gremio
+21;Atletico-GO;1;4;Botafogo-RJ
+21;Criciuma;2;1;Atletico-MG
+22;Internacional;2;2;Athletico-PR
+22;Cruzeiro;0;0;Atletico-MG
+22;Bahia;2;0;Vitoria
+22;Flamengo;1;1;Palmeiras
+22;Vasco;2;0;Fluminense
+22;Corinthians;1;1;Bragantino
+22;Sao Paulo;1;0;Atletico-GO
+22;Fortaleza;1;0;Criciuma
+22;Cuiaba;1;3;Gremio
+22;Juventude;3;2;Botafogo-RJ
+23;Gremio;0;2;Bahia
+23;Atletico-MG;1;1;Cuiaba
+23;Vitoria;2;2;Cruzeiro
+23;Fluminense;0;0;Corinthians
+23;Botafogo-RJ;4;1;Flamengo
+23;Palmeiras;2;1;Sao Paulo
+23;Bragantino;1;2;Fortaleza
+23;Athletico-PR;1;2;Juventude
+23;Atletico-GO;1;0;Internacional
+23;Criciuma;2;2;Vasco
+24;Internacional;1;0;Cruzeiro
+24;Atletico-MG;0;2;Fluminense
+24;Bahia;0;0;Botafogo-RJ
+24;Flamengo;2;1;Bragantino
+24;Vasco;2;1;Athletico-PR
+24;Palmeiras;5;0;Cuiaba
+24;Sao Paulo;2;1;Vitoria
+24;Fortaleza;1;0;Corinthians
+24;Atletico-GO;2;1;Juventude
+24;Criciuma;0;1;Gremio
+25;Gremio;2;3;Atletico-MG
+25;Cruzeiro;3;1;Atletico-GO
+25;Vitoria;0;1;Vasco
+25;Fluminense;2;0;Sao Paulo
+25;Botafogo-RJ;2;0;Fortaleza
+25;Corinthians;2;1;Flamengo
+25;Bragantino;2;1;Bahia
+25;Athletico-PR;0;2;Palmeiras
+25;Cuiaba;2;1;Criciuma
+25;Juventude;1;3;Internacional
+26;Internacional;3;0;Cuiaba
+26;Cruzeiro;0;1;Sao Paulo
+26;Bahia;3;0;Atletico-MG
+26;Flamengo;1;1;Vasco
+26;Botafogo-RJ;2;1;Corinthians
+26;Palmeiras;5;0;Criciuma
+26;Bragantino;2;2;Gremio
+26;Athletico-PR;1;1;Fortaleza
+26;Atletico-GO;0;2;Vitoria
+26;Juventude;2;1;Fluminense
+27;Gremio;3;2;Flamengo
+27;Atletico-MG;3;0;Bragantino
+27;Vitoria;1;0;Juventude
+27;Fluminense;0;1;Botafogo-RJ
+27;Vasco;0;1;Palmeiras
+27;Corinthians;3;0;Atletico-GO
+27;Sao Paulo;1;3;Internacional
+27;Fortaleza;4;1;Bahia
+27;Cuiaba;0;0;Cruzeiro
+27;Criciuma;0;0;Athletico-PR
+28;Internacional;3;1;Vitoria
+28;Cruzeiro;1;1;Vasco
+28;Bahia;1;0;Criciuma
+28;Flamengo;1;0;Athletico-PR
+28;Botafogo-RJ;0;0;Gremio
+28;Palmeiras;2;1;Atletico-MG
+28;Sao Paulo;3;1;Corinthians
+28;Fortaleza;1;0;Cuiaba
+28;Atletico-GO;1;0;Fluminense
+28;Juventude;1;1;Bragantino
+29;Gremio;3;1;Fortaleza
+29;Atletico-MG;2;2;Vitoria
+29;Bahia;0;2;Flamengo
+29;Fluminense;1;0;Cruzeiro
+29;Vasco;1;1;Juventude
+29;Corinthians;2;2;Internacional
+29;Bragantino;0;0;Palmeiras
+29;Athletico-PR;0;1;Botafogo-RJ
+29;Cuiaba;2;0;Sao Paulo
+29;Criciuma;2;0;Atletico-GO
+30;Internacional;1;0;Gremio
+30;Cruzeiro;1;1;Bahia
+30;Vitoria;1;0;Bragantino
+30;Flamengo;0;2;Fluminense
+30;Botafogo-RJ;1;1;Criciuma
+30;Corinthians;5;2;Athletico-PR
+30;Sao Paulo;3;0;Vasco
+30;Fortaleza;1;1;Atletico-MG
+30;Atletico-GO;0;0;Cuiaba
+30;Juventude;3;5;Palmeiras
+31;Gremio;3;1;Atletico-GO
+31;Atletico-MG;1;3;Internacional
+31;Vitoria;2;1;Fluminense
+31;Flamengo;4;2;Juventude
+31;Vasco;3;2;Bahia
+31;Palmeiras;2;2;Fortaleza
+31;Bragantino;0;1;Botafogo-RJ
+31;Athletico-PR;3;0;Cruzeiro
+31;Cuiaba;0;1;Corinthians
+31;Criciuma;1;1;Sao Paulo
+32;Internacional;2;0;Criciuma
+32;Cruzeiro;0;1;Flamengo
+32;Bahia;0;3;Sao Paulo
+32;Fluminense;2;2;Gremio
+32;Botafogo-RJ;3;0;Vasco
+32;Corinthians;2;0;Palmeiras
+32;Bragantino;0;0;Cuiaba
+32;Athletico-PR;1;2;Vitoria
+32;Atletico-GO;1;0;Atletico-MG
+32;Juventude;0;3;Fortaleza
+33;Internacional;2;0;Fluminense
+33;Cruzeiro;2;1;Criciuma
+33;Vitoria;1;2;Corinthians
+33;Flamengo;0;0;Atletico-MG
+33;Botafogo-RJ;0;0;Cuiaba
+33;Palmeiras;1;0;Gremio
+33;Sao Paulo;2;1;Athletico-PR
+33;Fortaleza;3;0;Vasco
+33;Atletico-GO;0;0;Bragantino
+33;Juventude;2;1;Bahia
+34;Gremio;2;2;Juventude
+34;Atletico-MG;0;0;Botafogo-RJ
+34;Bahia;1;2;Palmeiras
+34;Fluminense;2;2;Fortaleza
+34;Vasco;0;1;Internacional
+34;Corinthians;2;1;Cruzeiro
+34;Bragantino;1;1;Sao Paulo
+34;Athletico-PR;2;0;Atletico-GO
+34;Cuiaba;1;2;Flamengo
+34;Criciuma;0;1;Vitoria
+35;Internacional;4;1;Bragantino
+35;Cruzeiro;1;1;Gremio
+35;Bahia;1;1;Athletico-PR
+35;Fluminense;0;0;Criciuma
+35;Botafogo-RJ;1;1;Vitoria
+35;Corinthians;3;1;Vasco
+35;Sao Paulo;2;2;Atletico-MG
+35;Fortaleza;0;0;Flamengo
+35;Atletico-GO;0;1;Palmeiras
+35;Juventude;1;1;Cuiaba
+36;Gremio;2;1;Sao Paulo
+36;Atletico-MG;2;3;Juventude
+36;Vitoria;2;0;Fortaleza
+36;Flamengo;3;2;Internacional
+36;Vasco;2;2;Atletico-GO
+36;Palmeiras;1;3;Botafogo-RJ
+36;Bragantino;1;1;Cruzeiro
+36;Athletico-PR;1;1;Fluminense
+36;Cuiaba;1;2;Bahia
+36;Criciuma;2;4;Corinthians
+37;Internacional;0;1;Botafogo-RJ
+37;Cruzeiro;1;2;Palmeiras
+37;Vitoria;1;1;Gremio
+37;Fluminense;1;0;Cuiaba
+37;Vasco;2;0;Atletico-MG
+37;Corinthians;3;0;Bahia
+37;Sao Paulo;1;2;Juventude
+37;Athletico-PR;1;2;Bragantino
+37;Atletico-GO;3;1;Fortaleza
+37;Criciuma;0;3;Flamengo
+38;Gremio;0;3;Corinthians
+38;Atletico-MG;1;0;Athletico-PR
+38;Bahia;2;0;Atletico-GO
+38;Flamengo;2;2;Vitoria
+38;Botafogo-RJ;2;1;Sao Paulo
+38;Palmeiras;0;1;Fluminense
+38;Bragantino;5;1;Criciuma
+38;Fortaleza;3;0;Internacional
+38;Cuiaba;1;2;Vasco
+38;Juventude;0;1;Cruzeiro
