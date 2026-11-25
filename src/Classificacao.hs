@@ -17,6 +17,10 @@ module Classificacao
   , pontosLinha
   , saldo
   , aproveitamento
+    -- * Disciplina (com suporte a ausência de dados)
+  , cartoesDoTime
+  , totalAmarelos
+  , totalVermelhos
     -- * Tabela e critérios de desempate
   , criterios
   , compararLinhas
@@ -24,6 +28,7 @@ module Classificacao
   , criterioDecisivoCampeonato
   , classificacao
   , empatesEmPontos
+  , empateDependeDeSorteio
     -- * Estatísticas do campeonato
   , ateRodada
   , ultimaRodada
@@ -96,6 +101,26 @@ aproveitamento l
     disputados = pontos Vitoria * jogos l
 
 -- ---------------------------------------------------------------------
+-- Disciplina (com suporte a ausência de dados)
+-- ---------------------------------------------------------------------
+
+-- | Acumula cartões de um time a partir de registros explícitos
+--   (amarelos, vermelhos). Se a lista estiver vazia, devolve (0, 0).
+cartoesDoTime :: [(Time, Int, Int)] -> Time -> Cartoes
+cartoesDoTime registros t =
+  foldr somar (Cartoes 0 0) (filter (\(nome, _, _) -> nome == t) registros)
+  where
+    somar (_, a, v) acc = Cartoes (amarelos acc + a) (vermelhos acc + v)
+
+-- | Total de cartões amarelos de um time (0 na ausência de dados).
+totalAmarelos :: [(Time, Int, Int)] -> Time -> Int
+totalAmarelos registros = amarelos . cartoesDoTime registros
+
+-- | Total de cartões vermelhos de um time (0 na ausência de dados).
+totalVermelhos :: [(Time, Int, Int)] -> Time -> Int
+totalVermelhos registros = vermelhos . cartoesDoTime registros
+
+-- ---------------------------------------------------------------------
 -- Tabela e critérios de desempate
 -- ---------------------------------------------------------------------
 
@@ -103,7 +128,7 @@ aproveitamento l
 --   Cada um tem um nome (usado para explicar desempates) e uma comparação.
 --   Down inverte a ordem: quem tem MAIS pontos, vitórias etc. fica acima.
 --   Estes criterios comparam linhas isoladas. O confronto direto exige
---   as partidas e e acrescentado por criteriosDoCampeonato.
+--   as partidas e é acrescentado por criteriosDoCampeonato.
 criterios :: [(String, Linha -> Linha -> Ordering)]
 criterios =
   [ ("pontos",           comparing (Down . pontosLinha))
@@ -116,13 +141,7 @@ criterios =
 -- | Comparação completa: aplica os critérios em ordem e junta os resultados
 --   com <>. Ordering é um Monoid em que LT <> _ = LT, GT <> _ = GT e
 --   EQ <> y = y: o primeiro critério que diferencia os times decide, e os
---   seguintes nem chegam a ser avaliados. O resultado é o mesmo de escrever
---
---   >  comparing (Down . pontosLinha) <> comparing (Down . vitorias)
---   >    <> comparing (Down . saldo) <> comparing (Down . golsPro)
---   >    <> comparing time
---
---   mas com os critérios numa lista só, também usada por 'criterioDecisivo'.
+--   seguintes nem chegam a ser avaliados.
 compararLinhas :: Linha -> Linha -> Ordering
 compararLinhas a b = foldr (\(_, compara) resto -> compara a b <> resto) EQ criterios
 
@@ -141,7 +160,7 @@ classificacao partidas =
       (criteriosDoCampeonato partidas tabela)
 
 -- | Acrescenta o confronto direto antes do desempate alfabetico.
---   O regulamento de 2024 so o aplica a dois times empatados em pontos,
+--   O regulamento de 2024 só o aplica a dois times empatados em pontos,
 --   considerando o placar agregado dos jogos de ida e volta.
 criteriosDoCampeonato :: [Partida] -> [Linha] -> [(String, Linha -> Linha -> Ordering)]
 criteriosDoCampeonato partidas tabela =
@@ -152,7 +171,7 @@ criteriosDoCampeonato partidas tabela =
       | length ida /= 1 || length volta /= 1 = EQ
       | otherwise = comparing (Down . saldo . linhaDoTime (ida ++ volta) . time) a b
       where
-        ida = filter (\p -> mandante p == time a && visitante p == time b) partidas
+        ida   = filter (\p -> mandante p == time a && visitante p == time b) partidas
         volta = filter (\p -> mandante p == time b && visitante p == time a) partidas
 
 -- | Explica o desempate usando o mesmo contexto da classificacao.
@@ -161,6 +180,13 @@ criterioDecisivoCampeonato partidas a b =
   fst <$> find (\(_, compara) -> compara a b /= EQ) (criteriosDoCampeonato partidas tabela)
   where
     tabela = map (linhaDoTime partidas) (times partidas)
+
+-- | Indica se duas linhas permanecem empatadas em todos os critérios
+--   objetivos (pontos, vitórias, confronto direto quando aplicável,
+--   saldo de gols e gols marcados), exigindo sorteio/critério final.
+empateDependeDeSorteio :: [Partida] -> Linha -> Linha -> Bool
+empateDependeDeSorteio partidas a b =
+  criterioDecisivoCampeonato partidas a b `elem` [Nothing, Just "ordem alfabetica"]
 
 -- | Pares de times vizinhos na tabela que somam os mesmos pontos.
 --   zip com drop 1 forma os pares sem usar tail (que quebra na lista vazia).
@@ -194,9 +220,6 @@ totalDeGols :: [Partida] -> Int
 totalDeGols = sum . map golsDaPartida
 
 -- | Partida com a maior diferença de gols; Nothing para a lista vazia.
---   A dobra começa em Nothing, por isso não precisa de maximumBy nem de
---   foldr1 (que quebram com a lista vazia). Se houver empate na diferença,
---   fica a partida que aparece primeiro na lista.
 maiorGoleada :: [Partida] -> Maybe Partida
 maiorGoleada = foldr escolher Nothing
   where

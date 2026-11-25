@@ -212,6 +212,8 @@ agregado. Cartões e sorteio não estão no formato de entrada: persistindo o em
 alfabética. Essa adaptação não equivale ao regulamento integral da CBF e precisa ser aceita na
 avaliação acadêmica. Ela não altera a classificação final do dataset de 2024.
 
+Empates com três ou mais clubes não usam confronto direto, e quando falta um dos dois jogos do confronto direto o critério também não decide isoladamente. A ausência de dados disciplinares (cartões amarelos e vermelhos) é tratada com valor neutro (`0`), e empates que dependem de sorteio são sinalizados e mantidos determinísticos na ordenação.
+
 ## Campeonato de teste
 
 O campeonato fica em [src/Dados.hs](src/Dados.hs), [data/campeonato-teste.csv](data/campeonato-teste.csv)
@@ -258,6 +260,8 @@ conferido à mão, e os testes são separados por camada:
   ausência de erros, tabela final completa comparada com a CBF, gols e classificação parcial.
 
 Os testes de arquivos devem ser executados na raiz do projeto.
+
+Além das camadas e dos arquivos CSV (incluindo o Brasileirão 2024 e rodadas intermediárias), os testes cobrem desempates por vitórias, saldo e gols marcados, confronto direto entre dois clubes, empate entre três ou mais clubes, confronto direto sem as duas partidas, cartões amarelos/vermelhos, ausência de dados disciplinares e sorteio.
 
 ## Onde está cada requisito
 

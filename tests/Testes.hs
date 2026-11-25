@@ -51,6 +51,7 @@ main = do
     [ grupo "Camada 1 - Tipos e consultas basicas" testesCamada1
     , grupo "Camada 2 - Classificacao e estatisticas" testesCamada2
     , grupo "Camada 3 - Leitura, validacao e formatacao" testesCamada3
+    , grupo "Criterios avancados, desempates e disciplina" testesCriteriosEDisciplina
     , grupo "Integracao - Arquivos CSV" (testesArquivos textoReal textoTeste textoLegado)
     ]
   let total  = length resultados
@@ -76,6 +77,8 @@ testesArquivos real controlado legado =
       ((\ps -> (totalDeGols ps, mediaGols ps)) <$> partidas) (Right (929, Just (929 / 380)))
   , testar "dataset real: 190 partidas ate a rodada 19"
       (length . ateRodada 19 <$> partidas) (Right 190)
+  , testar "dataset real: rodada intermediaria 10 tem 100 partidas"
+      (length . ateRodada 10 <$> partidas) (Right 100)
   ]
   where
     partidas = lerCampeonato real
@@ -212,6 +215,8 @@ testesCamada1 =
       ["Botafogo", "Cruzeiro", "Flamengo", "Fortaleza", "Internacional", "Palmeiras"]
   , testar "times de um campeonato sem partidas e []"
       (times []) []
+  , testar "cartoes sem registro explicito retornam 0"
+      (amarelosNaPartida "Botafogo" jogoFora, vermelhosNaPartida "Botafogo" jogoFora) (0, 0)
     -- requisitos mínimos do campeonato de teste
   , testar "campeonato de teste: 6 times, 5 rodadas e 15 partidas"
       (length (times partidasDeTeste), ultimaRodada partidasDeTeste, length partidasDeTeste)
@@ -313,6 +318,74 @@ partidasConfronto =
   , Partida 3 "A" 1 0 "C", Partida 3 "Z" 0 1 "D"
   , Partida 4 "A" 1 0 "D", Partida 4 "Z" 0 1 "C"
   ]
+
+-- Confronto direto incompleto: apenas 1 partida entre Z e A (sem jogo de volta).
+partidasConfrontoIncompleto :: [Partida]
+partidasConfrontoIncompleto =
+  [ Partida 1 "Z" 1 0 "A"
+  , Partida 2 "A" 1 0 "C", Partida 2 "Z" 0 1 "D"
+  , Partida 3 "A" 1 0 "D", Partida 3 "Z" 0 1 "C"
+  ]
+
+-- Empate entre 3 clubes em pontos (9 pts), vitorias (3) e saldo (+2),
+-- separados por gols marcados (X: 8 GP, Y: 7 GP, W: 6 GP).
+partidasTresClubes :: [Partida]
+partidasTresClubes =
+  [ Partida 1 "X" 4 2 "D1", Partida 1 "Y" 3 1 "D2", Partida 1 "W" 2 0 "D3"
+  , Partida 2 "X" 2 1 "D2", Partida 2 "Y" 2 1 "D3", Partida 2 "W" 2 1 "D1"
+  , Partida 3 "X" 2 1 "D3", Partida 3 "Y" 2 1 "D1", Partida 3 "W" 2 1 "D2"
+  ]
+
+-- ---------------------------------------------------------------------
+-- Critérios avançados, desempates e disciplina
+-- ---------------------------------------------------------------------
+
+testesCriteriosEDisciplina :: [IO Bool]
+testesCriteriosEDisciplina =
+  [ testar "desempate por numero de vitorias: Fortaleza (2 V) acima do Flamengo (1 V)"
+      (criterioDecisivo (linhaDe "Fortaleza" tabelaFinal) (linhaDe "Flamengo" tabelaFinal))
+      (Just "vitorias")
+  , testar "desempate por saldo de gols: Palmeiras (+4) acima do Botafogo (+2) na rodada 3"
+      (criterioDecisivo (linhaDe "Palmeiras" tabelaRodada3) (linhaDe "Botafogo" tabelaRodada3))
+      (Just "saldo de gols")
+  , testar "desempate por gols marcados: Internacional (7 GP) acima do Cruzeiro (5 GP)"
+      (criterioDecisivo (linhaDe "Internacional" tabelaFinal) (linhaDe "Cruzeiro" tabelaFinal))
+      (Just "gols marcados")
+  , testar "confronto direto entre dois clubes (Z e A) com ida e volta"
+      (criterioDecisivoCampeonato partidasConfronto
+        (linhaDoTime partidasConfronto "Z") (linhaDoTime partidasConfronto "A"))
+      (Just "confronto direto")
+  , testar "empate entre tres clubes ordena corretamente sem usar confronto direto"
+      (map time (take 3 (classificacao partidasTresClubes)))
+      ["X", "Y", "W"]
+  , testar "confronto direto sem as duas partidas nao decide pelo confronto direto"
+      (criterioDecisivoCampeonato partidasConfrontoIncompleto
+        (linhaDoTime partidasConfrontoIncompleto "Z")
+        (linhaDoTime partidasConfrontoIncompleto "A"))
+      (Just "ordem alfabetica")
+  , testar "empate identico em todos os criterios objetivos depende de sorteio / desempate final"
+      (empateDependeDeSorteio [Partida 1 "A" 1 1 "B"]
+        (linhaDoTime [Partida 1 "A" 1 1 "B"] "A")
+        (linhaDoTime [Partida 1 "A" 1 1 "B"] "B"))
+      True
+  , testar "cartoes amarelos e vermelhos sao contabilizados por clube"
+      ( totalAmarelos registrosDisciplinares "Botafogo"
+      , totalVermelhos registrosDisciplinares "Botafogo"
+      )
+      (3, 1)
+  , testar "ausencia de dados disciplinares retorna zero sem falhar"
+      ( totalAmarelos [] "Botafogo"
+      , totalVermelhos [] "Botafogo"
+      , cartoesDoTime [] "Botafogo"
+      )
+      (0, 0, Cartoes 0 0)
+  ]
+  where
+    registrosDisciplinares =
+      [ ("Botafogo", 2, 0)
+      , ("Palmeiras", 1, 1)
+      , ("Botafogo", 1, 1)
+      ]
 
 -- ---------------------------------------------------------------------
 -- Camada 3: leitura, validação e formatação

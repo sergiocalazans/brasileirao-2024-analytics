@@ -120,6 +120,11 @@ número 3 escrito direto. Para mudar a regra de pontuação, basta alterar `pont
 **Tabela parcial.** `classificacao (ateRodada n partidas)` mostra a tabela em qualquer momento do
 campeonato, reaproveitando as mesmas funções.
 
+
+- Quando há empate entre três ou mais clubes ou quando o confronto direto não possui os dois jogos (ida e volta), o confronto direto não decide sozinho.
+- A ausência de dados disciplinares (cartões amarelos e vermelhos) retorna `0` sem falhas, e empates sem critério objetivo de desempate são identificados para sorteio/critério final.
+
+
 ## 5. Camada 3: leitura, validação e saída
 
 **`Erro` com sete construtores.** São os cinco exigidos (`CamposInvalidos`, `NumeroInvalido`,
@@ -322,3 +327,4 @@ campos vazios, separador sobrando, `+3`, `3.0`, `(3)`, `0x10` e números enormes
 | D10 | Saída somente em ASCII | A codificação CP437 derrubava o programa ao imprimir `ã` | Implementada |
 | D11 | Leitura opcional de arquivo pelo `main`, com `try` | Usar `data/teste.txt` sem violar a regra de nenhuma exceção | Implementada |
 | D12 | Lista `criterios` nomeada e `criterioDecisivo` | Fonte única dos critérios; explica cada desempate | Implementada |
+| D13 | Tratar ausência de cartões com zero e sinalizar empate para sorteio | Evitar falhas sem dados disciplinares e deixar explícito o caso de sorteio | Implementada |

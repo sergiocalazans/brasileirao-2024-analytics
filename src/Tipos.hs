@@ -1,7 +1,7 @@
 {-
   Módulo: Tipos (Camada 1)
   Descrição: Define os tipos algébricos e as consultas básicas
-             sobre times e partidas do campeonato.
+             sobre times, partidas e dados disciplinares do campeonato.
 
   Os tipos foram escolhidos para que erros comuns nem cheguem a compilar:
     * Resultado é um tipo soma: só existem Vitoria, Empate e Derrota
@@ -17,11 +17,14 @@ module Tipos
   , Resultado (..)
   , Partida (..)
   , Linha (..)
+  , Cartoes (..)
     -- * Consultas sobre uma partida
   , participou
   , golsMarcados
   , golsSofridos
   , resultadoPara
+  , amarelosNaPartida
+  , vermelhosNaPartida
     -- * Consultas sobre o campeonato
   , times
   ) where
@@ -55,6 +58,12 @@ data Linha = Linha
   , golsContra :: Int  -- ^ gols sofridos
   } deriving (Show, Eq)
 
+-- | Contagem disciplinar simples (cartões amarelos e vermelhos).
+data Cartoes = Cartoes
+  { amarelos :: Int
+  , vermelhos :: Int
+  } deriving (Show, Eq)
+
 -- | Verdadeiro se o time jogou a partida, como mandante ou como visitante.
 participou :: Time -> Partida -> Bool
 participou t p = t == mandante p || t == visitante p
@@ -85,6 +94,14 @@ resultadoDoPlacar marcados sofridos = case compare marcados sofridos of
   GT -> Vitoria
   EQ -> Empate
   LT -> Derrota
+
+-- | Cartões amarelos de um time em uma partida sem registro disciplinar explícito (0).
+amarelosNaPartida :: Time -> Partida -> Int
+amarelosNaPartida _ _ = 0
+
+-- | Cartões vermelhos de um time em uma partida sem registro disciplinar explícito (0).
+vermelhosNaPartida :: Time -> Partida -> Int
+vermelhosNaPartida _ _ = 0
 
 -- | Todos os times do campeonato, sem repetição e em ordem alfabética.
 times :: [Partida] -> [Time]

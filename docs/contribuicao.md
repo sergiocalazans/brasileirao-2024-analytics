@@ -124,4 +124,7 @@ Um Pull Request poderá ser aprovado quando:
 - Não houver alterações desnecessárias em arquivos de outros módulos.
 - Pelo menos um integrante tiver revisado o código.
 
--
+## 7. Compilação e Validação antes do Merge
+
+- Compilar aplicação e testes sem avisos com `ghc -Wall -Werror -isrc ...`.
+- Executar toda a suíte de testes (`runghc -isrc tests/Testes.hs` ou executável compilado) garantindo saída `0` sem falhas.
