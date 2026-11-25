@@ -14,9 +14,9 @@ rejeita entradas com erros de digitação com uma mensagem útil, sem nunca ence
 | Nome | GitHub |
 |---|---|
 | Sérgio | [sergiocalazans](https://github.com/sergiocalazans) |
-| Glaucia | Não informado |
+| Glaucia | [Glaucia05](https://github.com/Glaucia05) |
 | Nicolly | [ly-ubimyy](https://github.com/ly-ubimyy) |
-| Gustavo | Não informado |
+| Gustavo | [GMizuguti](https://github.com/GMizuguti) |
 
 ## Estrutura do projeto
 
