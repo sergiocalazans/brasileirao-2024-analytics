@@ -125,12 +125,6 @@ Os 86 testes passaram no executável e com `runghc -isrc tests/Testes.hs`. Foram
 também dez cenários de execução: dados embutidos, CSV controlado, arquivo original, CSV real,
 arquivo vazio, entrada inválida, arquivo inexistente, diretório, bytes inválidos e nomes acentuados.
 
-No Windows nativo, o comando normal ainda falha por arquivos ausentes na instalação do Clang
-(`x86intrin.h`). A revisão anterior usou uma cópia temporária do cache do GHCup; esse caminho
-não é requisito de execução. Use o WSL validado acima ou repare a instalação nativa antes da
-apresentação. A revisão pré-merge não alterou a instalação do compilador. Docker, macOS e
-playground não foram testados nesta revisão.
-
 ## Formato da entrada
 
 Cada linha descreve uma partida, com os campos separados por ponto e vírgula. Linhas em branco e
