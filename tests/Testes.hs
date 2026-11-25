@@ -44,15 +44,67 @@ grupo nome testes = do
 -- | Roda os testes das três camadas e mostra o resumo.
 main :: IO ()
 main = do
+  textoReal <- readFile "data/brasileirao-2024.csv"
+  textoTeste <- readFile "data/campeonato-teste.csv"
+  textoLegado <- readFile "data/teste.txt"
   resultados <- concat <$> sequence
     [ grupo "Camada 1 - Tipos e consultas basicas" testesCamada1
     , grupo "Camada 2 - Classificacao e estatisticas" testesCamada2
     , grupo "Camada 3 - Leitura, validacao e formatacao" testesCamada3
+    , grupo "Integracao - Arquivos CSV" (testesArquivos textoReal textoTeste textoLegado)
     ]
   let total  = length resultados
       falhas = length (filter not resultados)
   putStrLn ("\n" ++ show (total - falhas) ++ " de " ++ show total ++ " testes passaram.")
   if falhas == 0 then exitSuccess else exitFailure
+
+-- | Confere os arquivos entregues usando o parser e os calculos do programa.
+testesArquivos :: String -> String -> String -> [IO Bool]
+testesArquivos real controlado legado =
+  [ testar "CSV controlado corresponde a Dados.hs"
+      (lerCampeonato controlado) (Right partidasDeTeste)
+  , testar "arquivo legado preserva o mesmo campeonato"
+      (lerCampeonato legado) (lerCampeonato controlado)
+  , testar "dataset real: 380 partidas, 20 times e 38 rodadas"
+      ((\ps -> (length ps, length (times ps), ultimaRodada ps)) <$> partidas)
+      (Right (380, 20, 38))
+  , testar "dataset real nao tem erros ou times repetidos na rodada"
+      (todosOsErros real) []
+  , testar "tabela real completa confere com a classificacao publicada pela CBF"
+      (classificacao <$> partidas) (Right tabelaReal)
+  , testar "dataset real: 929 gols e media de 929/380"
+      ((\ps -> (totalDeGols ps, mediaGols ps)) <$> partidas) (Right (929, Just (929 / 380)))
+  , testar "dataset real: 190 partidas ate a rodada 19"
+      (length . ateRodada 19 <$> partidas) (Right 190)
+  ]
+  where
+    partidas = lerCampeonato real
+
+-- | Valores da CBF para a Serie A 2024; nomes seguem o CSV de origem.
+--   Fonte: https://www.cbf.com.br/futebol-brasileiro/tabelas/campeonato-brasileiro/serie-a/2024
+tabelaReal :: [Linha]
+tabelaReal =
+  [ Linha "Botafogo-RJ"   38 23 10  5 59 29
+  , Linha "Palmeiras"     38 22  7  9 60 33
+  , Linha "Flamengo"      38 20 10  8 61 42
+  , Linha "Fortaleza"     38 19 11  8 53 39
+  , Linha "Internacional" 38 18 11  9 53 36
+  , Linha "Sao Paulo"     38 17  8 13 53 43
+  , Linha "Corinthians"   38 15 11 12 54 45
+  , Linha "Bahia"         38 15  8 15 49 49
+  , Linha "Cruzeiro"      38 14 10 14 43 41
+  , Linha "Vasco"         38 14  8 16 43 56
+  , Linha "Vitoria"       38 13  8 17 45 52
+  , Linha "Atletico-MG"   38 11 14 13 47 54
+  , Linha "Fluminense"   38 12 10 16 33 39
+  , Linha "Gremio"       38 12  9 17 44 50
+  , Linha "Juventude"    38 11 12 15 48 59
+  , Linha "Bragantino"   38 10 14 14 44 48
+  , Linha "Athletico-PR" 38 11  9 18 40 46
+  , Linha "Criciuma"     38  9 11 18 42 61
+  , Linha "Atletico-GO"  38  7  9 22 29 58
+  , Linha "Cuiaba"       38  6 12 20 29 49
+  ]
 
 -- ---------------------------------------------------------------------
 -- Valores esperados, conferidos à mão
@@ -233,6 +285,17 @@ testesCamada2 =
       (mediaGols []) Nothing
   , testar "classificacao [] e [] (campeonato vazio nao quebra)"
       (classificacao []) []
+  , testar "confronto direto decide antes da ordem alfabetica"
+      (map time (take 2 (classificacao partidasConfronto))) ["Z", "A"]
+  , testar "explicacao identifica o confronto direto"
+      (criterioDecisivoCampeonato partidasConfronto
+        (linhaDoTime partidasConfronto "Z") (linhaDoTime partidasConfronto "A"))
+      (Just "confronto direto")
+  , testar "tres times empatados em pontos nao usam confronto direto"
+      (map time (filter (\l -> time l `elem` ["A", "Z"]) (classificacao empateTriplo)))
+      ["A", "Z"]
+  , testar "a ordem da entrada nao altera a classificacao com confronto direto"
+      (classificacao (reverse partidasConfronto)) (classificacao partidasConfronto)
   ]
   where
     botafogo      = linhaDe "Botafogo" tabelaFinal
@@ -241,6 +304,15 @@ testesCamada2 =
     internacional = linhaDe "Internacional" tabelaFinal
     cruzeiro      = linhaDe "Cruzeiro" tabelaFinal
     nomesDoPar (a, b) = (time a, time b)
+    empateTriplo = partidasConfronto ++ [Partida 1 "E" 3 0 "F", Partida 2 "F" 0 3 "E"]
+
+-- A e Z: 6 pontos, 2 vitorias, saldo 0 e 2 gols pro; Z venceu os dois confrontos.
+partidasConfronto :: [Partida]
+partidasConfronto =
+  [ Partida 1 "Z" 1 0 "A", Partida 2 "A" 0 1 "Z"
+  , Partida 3 "A" 1 0 "C", Partida 3 "Z" 0 1 "D"
+  , Partida 4 "A" 1 0 "D", Partida 4 "Z" 0 1 "C"
+  ]
 
 -- ---------------------------------------------------------------------
 -- Camada 3: leitura, validação e formatação
@@ -303,6 +375,22 @@ testesCamada3 =
       (todosOsErros dadosComErros) errosEsperados
   , testar "todosOsErros da entrada valida e []"
       (todosOsErros dadosCampeonato) []
+  , testar "todosOsErros acumula problemas independentes na mesma linha"
+      (todosOsErros "0;Bahia;-1;dois;Bahia")
+      [NumeroInvalido 1 "dois", RodadaInvalida 1 0, PlacarNegativo 1, MesmoTime 1 "Bahia"]
+  , testar "todosOsErros informa cada campo numerico invalido"
+      (todosOsErros "x;Bahia;y;z;Vasco")
+      [NumeroInvalido 1 "x", NumeroInvalido 1 "y", NumeroInvalido 1 "z"]
+  , testar "todosOsErros encontra repeticao mesmo com placar invalido"
+      (todosOsErros "1;Bahia;dois;0;Vasco\n1;Bahia;1;0;Flamengo")
+      [NumeroInvalido 1 "dois", TimeRepetidoNaRodada 1 "Bahia"]
+  , testar "todosOsErros nao confunde MesmoTime com repeticao entre partidas"
+      (todosOsErros "1;Bahia;0;0;Bahia") [MesmoTime 1 "Bahia"]
+  , testar "todosOsErros nao repete o mesmo erro de escalacao"
+      (todosOsErros "1;Bahia;0;0;Vasco\n1;Bahia;1;0;Flamengo\n1;Bahia;2;0;Cruzeiro")
+      [TimeRepetidoNaRodada 1 "Bahia"]
+  , testar "integracao: texto valido produz a tabela final esperada"
+      (classificacao <$> lerCampeonato dadosCampeonato) (Right tabelaFinal)
   , testar "o primeiro de todosOsErros e o erro devolvido por lerCampeonato"
       (take 1 (todosOsErros dadosComErros))
       (either (: []) (const []) (lerCampeonato dadosComErros))

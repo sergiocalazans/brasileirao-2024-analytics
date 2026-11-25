@@ -28,7 +28,7 @@ module Leitura
   ) where
 
 import Data.Char (isDigit, isSpace)
-import Data.Either (partitionEithers)
+import Data.Either (lefts, rights)
 import Data.List (dropWhileEnd, inits, nub)
 import Data.Maybe (listToMaybe)
 import Text.Read (readMaybe)
@@ -176,14 +176,38 @@ errosDeRodada = map (uncurry TimeRepetidoNaRodada) . repetidos . concatMap escal
 repetidos :: Eq a => [a] -> [a]
 repetidos xs = nub [x | (x, anteriores) <- zip xs (inits xs), x `elem` anteriores]
 
--- | Relatório com todos os erros do texto, e não só o primeiro: os erros de
---   cada linha (partitionEithers separa os Left dos Right) e, entre as
---   linhas válidas, os times escalados duas vezes na mesma rodada.
+-- | Acumula os erros de cada linha e depois as escalacoes repetidas.
+--   Um placar invalido nao impede conferir a rodada e os nomes dos times.
 todosOsErros :: String -> [Erro]
-todosOsErros texto = errosDeLinha ++ errosDeRodada partidasValidas
+todosOsErros texto = concatMap (uncurry errosDaLinha) linhas ++ errosDeEscalacao
   where
-    (errosDeLinha, partidasValidas) =
-      partitionEithers (map (uncurry lerPartida) (linhasDeDados texto))
+    linhas = linhasDeDados texto
+    errosDeEscalacao = map (uncurry TimeRepetidoNaRodada)
+      (repetidos (concatMap (uncurry escalacoesDaLinha) linhas))
+
+-- | Confere os campos independentemente, sem parar no primeiro erro.
+errosDaLinha :: Int -> String -> [Erro]
+errosDaLinha n linha = case map aparar (separar ';' linha) of
+  [r, casa, gm, gv, fora] ->
+    lefts [numRodada, golsM, golsV]
+      ++ [TimeVazio n | null casa || null fora]
+      ++ [RodadaInvalida n valor | Right valor <- [numRodada], valor < 1]
+      ++ [PlacarNegativo n | any (< 0) (rights [golsM, golsV])]
+      ++ [MesmoTime n casa | not (null casa) && casa == fora]
+    where
+      numRodada = lerInteiro n r
+      golsM = lerInteiro n gm
+      golsV = lerInteiro n gv
+  campos -> [CamposInvalidos n (length campos)]
+
+-- | So usa rodadas validas e nomes conhecidos; ignora erros de placar.
+--   nub evita contar o mesmo time duas vezes dentro da propria partida.
+escalacoesDaLinha :: Int -> String -> [(Int, Time)]
+escalacoesDaLinha n linha = case map aparar (separar ';' linha) of
+  [r, casa, _, _, fora] ->
+    [(valor, nome) | Right valor <- [lerInteiro n r], valor >= 1,
+                    nome <- nub [casa, fora], not (null nome)]
+  _ -> []
 
 -- ---------------------------------------------------------------------
 -- Formatação para impressão

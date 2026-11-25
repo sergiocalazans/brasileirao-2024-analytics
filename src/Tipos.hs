@@ -6,8 +6,8 @@
   Os tipos foram escolhidos para que erros comuns nem cheguem a compilar:
     * Resultado é um tipo soma: só existem Vitoria, Empate e Derrota
       (um "v" minúsculo compilaria como String, mas não como Resultado);
-    * Partida e Linha são records: cada número tem um nome, então não dá
-      para trocar, sem perceber, os gols do mandante com os do visitante;
+    * Partida e Linha são records: os nomes ajudam a distinguir os campos,
+      mas trocar dois valores Int ainda compila e exige testes;
     * Linha guarda só contagens. Pontos, saldo e aproveitamento são
       calculados na Camada 2 e por isso nunca ficam inconsistentes.
 -}

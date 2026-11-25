@@ -65,9 +65,9 @@ secoesDoCampeonato partidas = concat
       , "Partidas: " ++ show (length partidas) ++ " em " ++ show (ultimaRodada partidas) ++ " rodadas"
       , "Resultados de cada time, rodada a rodada:"
       ] ++ map campanha nomes
-  , secao "Camada 2 - Classificacao final" (tabelaComDesempates (classificacao partidas))
+  , secao "Camada 2 - Classificacao final" (tabelaComDesempates partidas (classificacao partidas))
   , secao ("Camada 2 - Classificacao apos a rodada " ++ show meio)
-      (tabelaComDesempates (classificacao (ateRodada meio partidas)))
+      (tabelaComDesempates (ateRodada meio partidas) (classificacao (ateRodada meio partidas)))
   , secao "Camada 2 - Estatisticas" (estatisticas partidas)
   ]
   where
@@ -78,16 +78,16 @@ secoesDoCampeonato partidas = concat
                    ++ unwords (map show (mapMaybe (resultadoPara t) partidas))
 
 -- | Tabela formatada seguida da explicação de cada empate em pontos.
-tabelaComDesempates :: [Linha] -> [String]
-tabelaComDesempates tabela =
-  lines (tabelaFormatada tabela) ++ map explicarDesempate (empatesEmPontos tabela)
+tabelaComDesempates :: [Partida] -> [Linha] -> [String]
+tabelaComDesempates partidas tabela =
+  lines (tabelaFormatada tabela) ++ map (explicarDesempate partidas) (empatesEmPontos tabela)
 
 -- | Explica qual critério separou dois times com os mesmos pontos.
-explicarDesempate :: (Linha, Linha) -> String
-explicarDesempate (acima, abaixo) =
+explicarDesempate :: [Partida] -> (Linha, Linha) -> String
+explicarDesempate partidas (acima, abaixo) =
   "* " ++ time acima ++ " fica a frente de " ++ time abaixo
     ++ " (ambos com " ++ show (pontosLinha acima) ++ " pontos): desempate por "
-    ++ fromMaybe "nenhum criterio" (criterioDecisivo acima abaixo)
+    ++ fromMaybe "nenhum criterio" (criterioDecisivoCampeonato partidas acima abaixo)
 
 -- | Estatísticas da Camada 2. Funcionam também sem partidas, pois
 --   maiorGoleada e mediaGols devolvem Maybe.

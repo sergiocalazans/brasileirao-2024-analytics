@@ -78,13 +78,14 @@ número 3 escrito direto. Para mudar a regra de pontuação, basta alterar `pont
 `fromIntegral` é feita antes da divisão com `(/)`: dividir com `div` truncaria o resultado, e
 `(/)` não aceita `Int`. Quando `jogos == 0`, o resultado é 0, o que evita a divisão por zero.
 
-**Critérios de desempate (regulamento do Brasileirão).** A ordem é:
+**Critérios de desempate (adaptação do Brasileirão).** A ordem é:
 
 1. pontos;
 2. vitórias;
 3. saldo de gols;
 4. gols marcados;
-5. ordem alfabética.
+5. confronto direto, quando aplicável;
+6. ordem alfabética como último recurso determinístico.
 
 - Os critérios ficam numa **única lista nomeada**, `criterios :: [(String, Linha -> Linha ->
   Ordering)]`, que é a fonte única de verdade.
@@ -96,14 +97,16 @@ número 3 escrito direto. Para mudar a regra de pontuação, basta alterar `pont
   - `Down` inverte a ordem, porque quem tem **mais** fica acima.
   - Preferimos combinar valores `Ordering`, e não funções (`mconcat (map snd criterios)`),
     porque a dobra explícita é mais fácil de explicar, linha a linha.
-- A ordenação é **uma única** chamada a `sortBy compararLinhas`. Encadear vários `sortBy`, um por
-  critério, seria frágil.
-- A mesma lista alimenta `criterioDecisivo`, que diz qual critério separou dois times. Ela é usada
-  na saída ("desempate por vitorias") e nos testes, o que deixa explícito qual critério decidiu
-  cada empate.
-- O regulamento tem ainda confronto direto, cartões e sorteio. Esses dados não existem na
-  entrada; a ordem alfabética ocupa o lugar do sorteio para que a tabela seja determinística
-  (veja as limitações).
+- A ordenação usa uma única chamada a `sortBy`. `criteriosDoCampeonato` acrescenta o confronto
+  direto aos critérios existentes, antes da ordem alfabética. Encadear vários `sortBy` seria frágil.
+- `criterioDecisivo` compara linhas isoladas; `criterioDecisivoCampeonato` usa as partidas e os
+  mesmos critérios da classificação para explicar a saída.
+- Conforme o [art. 15 do regulamento da CBF de 2024](https://www.netvasco.com.br/news/noticias16/arquivos/20240229-212757-2-rec--brasileiro-serie-a-2024.pdf),
+  o confronto direto só é usado quando exatamente dois clubes empatam em pontos. O programa
+  exige um jogo de ida e um de volta e compara o saldo agregado desses jogos. Com três ou mais
+  clubes empatados em pontos, o critério é ignorado, evitando uma comparação não transitiva.
+- Cartões e sorteio continuam fora do modelo; usa-se ordem alfabética quando o empate persiste.
+  A fidelidade integral ao regulamento depende de dados adicionais ou de aprovação dessa adaptação.
 
 **Funções totais.** Nenhuma função da camada quebra com a lista vazia:
 
@@ -171,10 +174,15 @@ soAlgarismos texto >>= readMaybe >>= cabeEmInt
 
 **`todosOsErros`: relatório completo.**
 
-- `partitionEithers` separa os erros de linha (`Left`) das partidas válidas (`Right`).
-- Sobre as partidas válidas, procura as escalações repetidas.
-- A ordem do relatório é a mesma da leitura, então o primeiro erro de `todosOsErros` é sempre o
-  erro devolvido por `lerCampeonato`. Há um teste que garante essa coerência.
+- `errosDaLinha` verifica independentemente os campos, usando `lefts` e `rights` para reunir
+  erros numéricos e conferir os valores que puderam ser lidos. Assim, uma linha pode gerar
+  `NumeroInvalido`, `PlacarNegativo` e `MesmoTime` ao mesmo tempo.
+- `escalacoesDaLinha` usa rodadas válidas e nomes conhecidos mesmo quando o placar está errado.
+  Um time aparece uma única vez por partida; jogar contra si mesmo gera `MesmoTime`.
+- Primeiro vêm os erros de linha, em ordem de leitura; depois, os erros de escalação. Campos
+  em quantidade errada geram `CamposInvalidos`, pois não há como associá-los com segurança.
+- `lerCampeonato` mantém a interrupção no primeiro erro via `traverse`. A lista completa tem
+  finalidade diferente e pode detectar uma infração de rodada mesmo em linhas inválidas.
 
 **`separar` com `foldr`.** A dobra guarda o campo em construção e os campos já completos.
 `separar` preserva campos vazios (`separar ';' "a;;b" == ["a","","b"]`), o que permite detectar
@@ -200,15 +208,13 @@ e aproveitamento, que tornam visível o motivo de cada desempate.
 
 ## 6. Campeonato de teste
 
-O plano inicial era usar resultados reais da Série A 2024. Não foi possível atender aos
-requisitos com eles:
+A issue #03 prevê dois conjuntos separados: resultados reais da Série A 2024 e um campeonato
+controlado para testes. O enunciado exige pelo menos seis times e cinco rodadas, mas não exige
+um turno fechado. O dataset real está em `data/brasileirao-2024.csv`; a fonte e a transformação
+estão documentadas no README. Nenhum resultado fictício foi incluído nesse arquivo.
 
-- O campeonato de teste precisa ter 6 times e 5 rodadas em que ninguém joga duas vezes na mesma
-  rodada. Resultados reais de 6 clubes não formam um turno fechado entre si.
-- O campeonato precisa ter um 0 x 0, uma goleada e um empate em pontos decidido pelos critérios.
-- A tabela precisa poder ser **conferida à mão**.
-
-Por isso, montamos um **campeonato fictício com seis clubes da Série A 2024** (Botafogo,
+Para permitir a conferência à mão e exercitar os desempates, a equipe montou um
+**campeonato fictício com seis clubes da Série A 2024** (Botafogo,
 Palmeiras, Fortaleza, Flamengo, Internacional e Cruzeiro), em turno único de 5 rodadas gerado pelo
 método do círculo. A tabela de mandos foi equilibrada: cada time joga 2 ou 3 vezes em casa.
 
@@ -222,8 +228,8 @@ Os placares foram escolhidos para exercitar cada critério de desempate:
 - **Saldo decide:** após a rodada 3, Palmeiras (+4) e Botafogo (+2) têm 6 pontos e 2 vitórias.
   O líder da rodada 3 (Palmeiras) não é o campeão (Botafogo).
 
-O mesmo campeonato está em `Dados.hs` (como `String`) e em `data/teste.txt`. Os dois são
-idênticos, o que foi conferido comparando os arquivos.
+O mesmo campeonato está em `Dados.hs` (como `String`), `data/campeonato-teste.csv` e
+`data/teste.txt`. Os testes comparam as partidas lidas dos três formatos.
 
 ## 7. Como cada armadilha do enunciado foi evitada
 
@@ -246,17 +252,16 @@ campos vazios, separador sobrando, `+3`, `3.0`, `(3)`, `0x10` e números enormes
 
 ## 8. Limitações conhecidas
 
-1. **Desempate incompleto.** O confronto direto (5º critério do Brasileirão), os cartões e o
-   sorteio não foram modelados: a entrada não tem cartões, e o confronto direto só vale para
-   empates entre **dois** clubes. Com três ou mais clubes empatados, ele não forma uma comparação
-   transitiva, que é o que o `sortBy` exige. Em seu lugar entra a ordem alfabética.
+1. **Desempate adaptado.** Confronto direto está implementado para dois clubes empatados em
+   pontos, com ida e volta disponíveis. Cartões e sorteio não fazem parte dos dados; a ordem
+   alfabética é o recurso final. A classificação real de 2024 não depende dessa substituição.
 2. **Nomes de times são comparados exatamente.** `Flamengo` e `flamengo` são times diferentes. Só
    os espaços das pontas são removidos; não há normalização de maiúsculas, acentos ou espaços
    internos.
-3. **Um erro por linha.** `lerPartida` informa só o **primeiro** problema de cada linha. Uma linha
-   com placar "dois" **e** time repetido mostra apenas o placar.
-4. **A escalação repetida indica a rodada, e não as linhas.** Em `todosOsErros`, ela considera só
-   as linhas válidas: uma linha inválida não conta como escalação.
+3. **Primeiro erro ou relatório completo.** `lerPartida` informa o primeiro erro. `todosOsErros`
+   acumula problemas independentes; uma regra que depende de um campo ilegível não é inferida.
+4. **A escalação repetida indica a rodada, e não as linhas.** `todosOsErros` considera nomes
+   conhecidos e rodadas válidas, inclusive quando o placar da linha está errado.
 5. **A estrutura do campeonato não é validada.** O programa não verifica se as rodadas são
    consecutivas, se todos os times jogam em todas as rodadas ou quantas vezes dois times se
    enfrentam. O returno é permitido, mas um terceiro jogo entre os mesmos times também seria.
@@ -274,7 +279,8 @@ campos vazios, separador sobrando, `+3`, `3.0`, `(3)`, `0x10` e números enormes
 10. **Acentos e codificação.** A saída é ASCII (veja a seção 5). Nomes com acento lidos de um
     arquivo são aceitos e processados, mas podem aparecer com caracteres trocados num console
     Windows que não use UTF-8. Um arquivo salvo **com BOM** tem a primeira linha recusada
-    (`CamposInvalidos`), porque o BOM fica grudado no primeiro campo. O arquivo deve ser salvo
+    (`CamposInvalidos` se o primeiro registro for um comentário, ou `NumeroInvalido` se for
+    uma partida), porque o BOM fica grudado no primeiro campo. O arquivo deve ser salvo
     como UTF-8 sem BOM ou ASCII.
 11. **O arquivo é lido inteiro na memória** antes do processamento. Isso é necessário para que
     os erros de leitura sejam capturados pelo `try`.
@@ -293,6 +299,9 @@ campos vazios, separador sobrando, `+3`, `3.0`, `(3)`, `0x10` e números enormes
 - **Avisos:** nenhum, com `-Wall`. O código também passa por
   `-Werror -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields
   -Wredundant-constraints -Wmissing-export-lists`.
+- **Validação local da revisão:** 86 testes aprovados no executável compilado. A instalação
+  ativa do Clang estava incompleta; o README registra as opções usadas para aproveitar a cópia
+  completa do cache, sem alterar o ambiente.
 - **Versionamento:** Git e GitHub. As convenções estão em `docs/contribuicao.md`.
 
 ## 10. Histórico de decisões
@@ -303,8 +312,8 @@ campos vazios, separador sobrando, `+3`, `3.0`, `(3)`, `0x10` e números enormes
 | D02 | Tipos algébricos e *records*; `Linha` só com contagens | Clareza; pontos e saldo nunca ficam inconsistentes | Implementada |
 | D03 | Funções de ordem superior, sem recursão explícita | Requisito da Camada 2; os padrões de recursão têm nome | Implementada |
 | D04 | `Maybe` e `Either` para ausência e erros | Funções totais, sem exceções | Implementada |
-| D05 | Campeonato **fictício** com clubes da Série A 2024 (em vez de resultados reais) | Atender aos mínimos (turno fechado, 0 x 0, goleada, empates em pontos) e permitir a conferência à mão | Alterada e implementada |
-| D06 | Critérios do Brasileirão: pontos, vitórias, saldo, gols pró e, por último, ordem alfabética | Regulamento real; ordem alfabética para ser determinística | Implementada |
+| D05 | Dataset real separado do campeonato controlado da equipe | Atender à issue #03 e preservar os testes conferidos à mão | Implementada |
+| D06 | Pontos, vitórias, saldo, gols pró, confronto direto e ordem alfabética | Aplicar os critérios disponíveis; cartões e sorteio permanecem como limitação | Implementada com adaptação |
 | D07 | `foldr` em `linhaDoTime` | No `Prelude` de toda versão do GHC; soma associativa | Implementada |
 | D08 | `Erro` com `RodadaInvalida` e `TimeVazio`, além dos 5 exigidos | Mensagens precisas para rodada ≤ 0 e nome em branco | Implementada |
 | D09 | Validação numérica estrita (algarismos, `Integer` e limite de `Int`) | `readMaybe` sozinho aceitava `(3)` e `0x10` e estourava `Int` | Implementada |

@@ -5,7 +5,8 @@
 
   Os dados ficam no próprio código, como String, no mesmo formato de um
   arquivo de entrada (o playground não tem entrada pelo teclado). O mesmo
-  campeonato está em data/teste.txt, para testar a leitura de arquivo.
+  campeonato está em data/campeonato-teste.csv e no arquivo original
+  data/teste.txt, para testar a leitura de arquivo.
   Os textos usam apenas caracteres ASCII para imprimir corretamente em
   qualquer console (veja docs/decisoes.md).
 -}

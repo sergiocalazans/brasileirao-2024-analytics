@@ -12,10 +12,10 @@ rejeita entradas com erros de digitação com uma mensagem útil, sem nunca ence
 
 | Nome | GitHub |
 |---|---|
-| _(preencher)_ | |
-| _(preencher)_ | |
-| _(preencher)_ | |
-| _(preencher)_ | |
+| Sérgio | [sergiocalazans](https://github.com/sergiocalazans) |
+| Glaucia | Não informado |
+| Nicolly | [ly-ubimyy](https://github.com/ly-ubimyy) |
+| Gustavo | Não informado |
 
 ## Estrutura do projeto
 
@@ -28,9 +28,11 @@ projeto/
 │   ├── Dados.hs          campeonato de teste e entradas de exemplo, como String
 │   └── Main.hs           demonstração das três camadas (o único ponto com IO)
 ├── tests/
-│   └── Testes.hs         69 testes com resultado esperado
+│   └── Testes.hs         86 testes com resultado esperado
 ├── data/
-│   └── teste.txt         o mesmo campeonato de teste, em arquivo (leitura opcional)
+│   ├── brasileirao-2024.csv  380 partidas reais da Série A 2024
+│   ├── campeonato-teste.csv  campeonato controlado exigido pela issue #03
+│   └── teste.txt             arquivo original da equipe, preservado
 ├── docs/
 │   ├── decisoes.md       decisões de modelagem e limitações conhecidas
 │   └── contribuicao.md   convenções de branches, commits e pull requests
@@ -52,7 +54,7 @@ runghc -isrc src/Main.hs
 ```
 
 ```powershell
-runghc -isrc src/Main.hs data/teste.txt
+runghc -isrc src/Main.hs data/campeonato-teste.csv
 ```
 
 ```powershell
@@ -62,8 +64,10 @@ runghc -isrc tests/Testes.hs
 - O primeiro comando usa o campeonato embutido em `src/Dados.hs`.
 - O segundo lê os dados de um arquivo. Pode ser qualquer arquivo no formato abaixo. Se ele não
   existir, o programa avisa e continua normalmente.
-- O terceiro roda os testes. O resultado esperado termina com `69 de 69 testes passaram.`, e o
+- O terceiro roda os testes. O resultado esperado termina com `86 de 86 testes passaram.`, e o
   código de saída é 1 se algum teste falhar.
+
+Para consultar os resultados reais, use `runghc -isrc src/Main.hs data/brasileirao-2024.csv`.
 
 ### 2. No GHCi
 
@@ -87,7 +91,7 @@ Para rodar os testes no GHCi, use `ghci -isrc tests/Testes.hs` e depois `:main`.
 ### 3. Compilando (com todos os avisos ligados)
 
 ```powershell
-mkdir build
+New-Item -ItemType Directory -Force build
 ```
 
 ```powershell
@@ -102,6 +106,28 @@ Depois execute `.\build\tabela.exe` e `.\build\testes.exe` no Windows, ou `./bui
 `./build/testes` no Linux e no macOS. O código compila **sem nenhum aviso** com `-Wall`. Ele foi
 conferido também com `-Werror -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns
 -Wpartial-fields -Wredundant-constraints`.
+
+### Observação sobre o GHC local da revisão
+
+Na revisão de 25/11/2026, o GHC 9.10.3 compilou os módulos, mas a instalação ativa do Clang
+estava incompleta (`x86intrin.h` e bibliotecas ausentes). Foi possível gerar os executáveis sem
+avisos usando a cópia completa já existente no cache do GHCup:
+
+```powershell
+$clangRevisao = 'C:/ghcup/tmp/ghcup-16afaa366449961d/ghcup/ghc/9.10.3/mingw'
+$opcoesRevisao = @('-Wall', '-Werror', '-isrc',
+  "-optc-resource-dir=$clangRevisao/lib/clang/14.0.6",
+  "-optl-resource-dir=$clangRevisao/lib/clang/14.0.6", "-optl-L$clangRevisao/lib")
+ghc @opcoesRevisao -outputdir build/obj-app -o build/tabela src/Main.hs
+ghc @opcoesRevisao -outputdir build/obj-testes -o build/testes tests/Testes.hs
+.\build\testes.exe
+.\build\tabela.exe data/brasileirao-2024.csv
+```
+
+Esse caminho é específico desta máquina e pode desaparecer ao limpar o cache. Em uma instalação
+completa do GHC, use os comandos normais acima. O interpretador local apresentou uma falha nativa
+ao ler arquivos; nesta máquina, a validação dos arquivos foi feita com os executáveis compilados.
+A instalação do compilador não foi alterada pela revisão.
 
 ## Formato da entrada
 
@@ -163,9 +189,30 @@ Camada 3 - Tratamento de uma entrada com erros
 A saída usa apenas caracteres ASCII, sem acentos, para aparecer igual em qualquer console. O
 motivo está em [docs/decisoes.md](docs/decisoes.md).
 
+## Dados reais e critérios de desempate
+
+O arquivo `data/brasileirao-2024.csv` contém 380 partidas, 20 times e 38 rodadas. A fonte é
+[Brasileirão Dataset](https://github.com/leeofernandes1980/brasileirao-dataset/blob/de69fdc5fa0f2b88c20d0a28fe2b769bdff197b9/dashboard/public/data/json/partidas_resumo.json),
+que identifica os registros de 2024 como provenientes do Sofascore. Consulta: 25/11/2026.
+O JSON foi filtrado por `temporada == 2024`, ordenado por rodada e identificador da partida e
+convertido para as cinco colunas exigidas, separadas por `;`. Os nomes e placares foram preservados;
+datas, estádio, identificador e demais campos foram descartados. O cabeçalho começa com `#`.
+O CSV legado da fonte termina antes de 2024 e não foi usado para gerar o arquivo entregue.
+
+A tabela final foi conferida com a [CBF](https://www.cbf.com.br/futebol-brasileiro/tabelas/campeonato-brasileiro/serie-a/2024):
+Botafogo com 79 pontos; 929 gols no campeonato. O teste compara as 20 linhas completas.
+Jogos adiados permanecem na rodada original; a tabela parcial representa rodadas, não datas.
+
+A ordenação usa pontos, vitórias, saldo, gols pró e confronto direto. Este último só é aplicado
+quando há exatamente dois clubes empatados em pontos e um jogo em cada mando, pelo placar
+agregado. Cartões e sorteio não estão no formato de entrada: persistindo o empate, usa-se a ordem
+alfabética. Essa adaptação não equivale ao regulamento integral da CBF e precisa ser aceita na
+avaliação acadêmica. Ela não altera a classificação final do dataset de 2024.
+
 ## Campeonato de teste
 
-O campeonato fica em [src/Dados.hs](src/Dados.hs) e em [data/teste.txt](data/teste.txt). É um
+O campeonato fica em [src/Dados.hs](src/Dados.hs), [data/campeonato-teste.csv](data/campeonato-teste.csv)
+e no arquivo original [data/teste.txt](data/teste.txt). É um
 campeonato fictício com seis clubes da Série A 2024, em turno único de 5 rodadas (15 partidas), em
 que nenhum time joga duas vezes na mesma rodada. Os placares foram escolhidos para cobrir os
 casos de borda:
@@ -182,7 +229,7 @@ casos de borda:
 
 ## Testes
 
-São 69 testes em [tests/Testes.hs](tests/Testes.hs). Cada um compara o valor obtido com o esperado,
+São 86 testes em [tests/Testes.hs](tests/Testes.hs). Cada um compara o valor obtido com o esperado,
 conferido à mão, e os testes são separados por camada:
 
 - **Camada 1 (13 testes):** `resultadoPara` para o mandante, o visitante e um time que não jogou
@@ -190,17 +237,24 @@ conferido à mão, e os testes são separados por camada:
   repetição e em ordem alfabética, inclusive sem partidas; e a verificação de que o campeonato de
   teste atende aos mínimos (6 times, 5 rodadas, ninguém repetido na rodada, um 0 x 0 e uma
   goleada).
-- **Camada 2 (25 testes):** `pontos`, `linhaDoTime`, `pontosLinha`, `saldo` e `aproveitamento`
+- **Camada 2 (29 testes):** `pontos`, `linhaDoTime`, `pontosLinha`, `saldo` e `aproveitamento`
   (inclusive de quem não jogou); a classificação completa conferida à mão; os três desempates,
   cada um com o critério que decidiu (`criterioDecisivo`); o critério alfabético; a
   classificação de `ateRodada 3`, diferente da final; e `maiorGoleada` e `mediaGols`, com a
-  lista vazia (`Nothing`) e com empate na diferença de gols.
-- **Camada 3 (31 testes):** `separar`; `lerPartida` válida, com espaços e `\r`; `lerCampeonato`
+  lista vazia (`Nothing`) e com empate na diferença de gols; confronto direto, exclusão desse
+  critério em empate triplo e independência da ordem de entrada.
+- **Camada 3 (37 testes):** `separar`; `lerPartida` válida, com espaços e `\r`; `lerCampeonato`
   sobre a entrada válida (`Right` com as 15 partidas), sobre um texto só com comentários e sobre
   o texto vazio; **um teste para cada construtor de `Erro`**, além dos formatos numéricos
   traiçoeiros (`2a`, `(3)`, `0x10` e um número que estoura `Int`); `todosOsErros` com 7 linhas
-  inválidas; a coerência entre `lerCampeonato` e `todosOsErros`; as mensagens de erro; e a
+  inválidas e múltiplos problemas na mesma linha; escalações repetidas com placar inválido;
+  integração do parser com a classificação; a coerência entre `lerCampeonato` e `todosOsErros`; as mensagens de erro; e a
   formatação da tabela, inclusive a tabela vazia.
+
+- **Arquivos CSV (7 testes):** equivalência dos dados controlados, estrutura do dataset real,
+  ausência de erros, tabela final completa comparada com a CBF, gols e classificação parcial.
+
+Os testes de arquivos devem ser executados na raiz do projeto.
 
 ## Onde está cada requisito
 

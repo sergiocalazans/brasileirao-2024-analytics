@@ -21,6 +21,7 @@ module Classificacao
   , criterios
   , compararLinhas
   , criterioDecisivo
+  , criterioDecisivoCampeonato
   , classificacao
   , empatesEmPontos
     -- * Estatísticas do campeonato
@@ -101,8 +102,8 @@ aproveitamento l
 -- | Critérios de classificação do Brasileirão, em ordem de prioridade.
 --   Cada um tem um nome (usado para explicar desempates) e uma comparação.
 --   Down inverte a ordem: quem tem MAIS pontos, vitórias etc. fica acima.
---   Confronto direto, cartões e sorteio não existem nos dados; a ordem
---   alfabética ocupa o lugar do sorteio para a tabela ser determinística.
+--   Estes criterios comparam linhas isoladas. O confronto direto exige
+--   as partidas e e acrescentado por criteriosDoCampeonato.
 criterios :: [(String, Linha -> Linha -> Ordering)]
 criterios =
   [ ("pontos",           comparing (Down . pontosLinha))
@@ -133,7 +134,33 @@ criterioDecisivo a b = fst <$> find (\(_, compara) -> compara a b /= EQ) criteri
 -- | Tabela completa: uma linha por time, ordenada pelos critérios com sortBy.
 classificacao :: [Partida] -> [Linha]
 classificacao partidas =
-  sortBy compararLinhas (map (linhaDoTime partidas) (times partidas))
+  sortBy comparar tabela
+  where
+    tabela = map (linhaDoTime partidas) (times partidas)
+    comparar a b = foldr (\(_, criterio) resto -> criterio a b <> resto) EQ
+      (criteriosDoCampeonato partidas tabela)
+
+-- | Acrescenta o confronto direto antes do desempate alfabetico.
+--   O regulamento de 2024 so o aplica a dois times empatados em pontos,
+--   considerando o placar agregado dos jogos de ida e volta.
+criteriosDoCampeonato :: [Partida] -> [Linha] -> [(String, Linha -> Linha -> Ordering)]
+criteriosDoCampeonato partidas tabela =
+  take 4 criterios ++ [("confronto direto", confrontoDireto)] ++ drop 4 criterios
+  where
+    confrontoDireto a b
+      | length (filter ((== pontosLinha a) . pontosLinha) tabela) /= 2 = EQ
+      | length ida /= 1 || length volta /= 1 = EQ
+      | otherwise = comparing (Down . saldo . linhaDoTime (ida ++ volta) . time) a b
+      where
+        ida = filter (\p -> mandante p == time a && visitante p == time b) partidas
+        volta = filter (\p -> mandante p == time b && visitante p == time a) partidas
+
+-- | Explica o desempate usando o mesmo contexto da classificacao.
+criterioDecisivoCampeonato :: [Partida] -> Linha -> Linha -> Maybe String
+criterioDecisivoCampeonato partidas a b =
+  fst <$> find (\(_, compara) -> compara a b /= EQ) (criteriosDoCampeonato partidas tabela)
+  where
+    tabela = map (linhaDoTime partidas) (times partidas)
 
 -- | Pares de times vizinhos na tabela que somam os mesmos pontos.
 --   zip com drop 1 forma os pares sem usar tail (que quebra na lista vazia).
