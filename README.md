@@ -5,7 +5,7 @@ resultados das partidas, recebidos como texto. Ele responde perguntas como *"que
 da 3ª rodada?"* e *"como um empate em pontos é desempatado?"*, mostra estatísticas do campeonato e
 rejeita entradas com erros de digitação com uma mensagem útil, sem nunca encerrar com exceção.
 
-> **Ambientes verificados:** GHC **9.10.3** no Windows 11 e no Ubuntu **26.04.1 LTS**, via WSL 2.
+> **Ambiente validado nesta revisão:** GHC **9.10.3** no Ubuntu **26.04.1 LTS**, via WSL 2.
 > O playground (play.haskell.org) **não** foi usado. O projeto depende só da biblioteca `base`.
 
 ## Integrantes
@@ -28,7 +28,7 @@ projeto/
 │   ├── Dados.hs          campeonato de teste e entradas de exemplo, como String
 │   └── Main.hs           demonstração das três camadas (o único ponto com IO)
 ├── tests/
-│   └── Testes.hs         86 testes com resultado esperado
+│   └── Testes.hs         119 testes com resultado esperado
 ├── data/
 │   ├── brasileirao-2024.csv  380 partidas reais da Série A 2024
 │   ├── campeonato-teste.csv  campeonato controlado exigido pela issue #03
@@ -64,7 +64,7 @@ runghc -isrc tests/Testes.hs
 - O primeiro comando usa o campeonato embutido em `src/Dados.hs`.
 - O segundo lê os dados de um arquivo. Pode ser qualquer arquivo no formato abaixo. Se ele não
   existir, o programa avisa e continua normalmente.
-- O terceiro roda os testes. O resultado esperado termina com `86 de 86 testes passaram.`, e o
+- O terceiro roda os testes. O resultado esperado termina com `119 de 119 testes passaram.`, e o
   código de saída é 1 se algum teste falhar.
 
 Para consultar os resultados reais, use `runghc -isrc src/Main.hs data/brasileirao-2024.csv`.
@@ -95,35 +95,41 @@ New-Item -ItemType Directory -Force build
 ```
 
 ```powershell
-ghc -Wall -isrc -outputdir build/obj-app -o build/tabela src/Main.hs
+ghc -Wall -Werror -isrc -outputdir build/obj-app -o build/tabela src/Main.hs
 ```
 
 ```powershell
-ghc -Wall -isrc -outputdir build/obj-testes -o build/testes tests/Testes.hs
+ghc -Wall -Werror -isrc -outputdir build/obj-testes -o build/testes tests/Testes.hs
 ```
 
 Depois execute `.\build\tabela.exe` e `.\build\testes.exe` no Windows, ou `./build/tabela` e
-`./build/testes` no Linux e no macOS. O código compila **sem nenhum aviso** com `-Wall`. Ele foi
-conferido também com `-Werror -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns
--Wpartial-fields -Wredundant-constraints`.
+`./build/testes` no Linux. O código compila **sem nenhum aviso** com `-Wall`.
+Nesta revisão, aplicação e testes foram compilados com `-Wall -Werror`.
 
-### Validação pré-merge no Ubuntu/WSL
+### Validação final no Ubuntu/WSL
 
 Na revisão de 25/11/2026, a aplicação e os testes compilaram sem avisos com GHC 9.10.3,
 no Ubuntu 26.04.1 LTS (x86_64), via WSL 2. Na raiz do projeto, execute:
 
 ```bash
 mkdir -p build
-ghc -Wall -Werror -isrc src/Main.hs -o build/brasileirao
+ghc -fforce-recomp -Wall -Werror -isrc src/Main.hs -o build/brasileirao
 ghc -Wall -Werror -isrc -outputdir build/obj-testes tests/Testes.hs -o build/testes
 ./build/testes
+./build/brasileirao
 ./build/brasileirao data/campeonato-teste.csv
 ./build/brasileirao data/brasileirao-2024.csv
 ```
 
-Os 86 testes passaram no executável e com `runghc -isrc tests/Testes.hs`. Foram verificados
+Os 119 testes passaram no executável e com `runghc -isrc tests/Testes.hs`. Foram verificados
 também dez cenários de execução: dados embutidos, CSV controlado, arquivo original, CSV real,
 arquivo vazio, entrada inválida, arquivo inexistente, diretório, bytes inválidos e nomes acentuados.
+
+A primeira execução reaproveitou um objeto antigo e terminou com falha de segmentação.
+A recompilação completa com `-fforce-recomp` eliminou o problema. Ao alternar Windows e Linux,
+recompile todos os módulos ou use diretórios de objetos separados. A instalação nativa do
+Windows tinha falhas no Clang/GHC 9.10.3; esta revisão não comprova sua correção e não depende
+de diretórios temporários do GHCup.
 
 ## Formato da entrada
 
@@ -205,7 +211,28 @@ agregado. Cartões e sorteio não estão no formato de entrada: persistindo o em
 alfabética. Essa adaptação não equivale ao regulamento integral da CBF e precisa ser aceita na
 avaliação acadêmica. Ela não altera a classificação final do dataset de 2024.
 
-Empates com três ou mais clubes não usam confronto direto, e quando falta um dos dois jogos do confronto direto o critério também não decide isoladamente. A ausência de dados disciplinares (cartões amarelos e vermelhos) é tratada com valor neutro (`0`), e empates que dependem de sorteio são sinalizados e mantidos determinísticos na ordenação.
+**Disciplina complementar.** `classificacaoComDisciplina partidas registros` permite aplicar
+menos cartões vermelhos e depois menos amarelos, após os critérios anteriores. Cada
+`RegistroCartoes rodada clube vermelhos amarelos` representa os cartões daquele jogo, não um
+total acumulado. Zero precisa ser informado; ausência ou registro inválido resulta em `Nothing`.
+Valores negativos, rodadas inválidas, clube em branco, duplicações e soma acima de `Int` são recusados
+pelas funções de contagem.
+
+A comparação disciplinar exige cobertura de todas as partidas de cada clube do grupo empatado
+em pontos, vitórias, saldo e gols. Sem essa cobertura, nenhum par desse grupo usa cartões; isso
+evita uma ordenação contraditória. Apenas registros das rodadas em que o clube jogou na lista
+recebida são considerados. Assim, `classificacaoComDisciplina (ateRodada n partidas) registros`
+não incorpora cartões de rodadas futuras.
+
+`statusDesempate` distingue `ResolvidoPor`, `ConfrontoDiretoIncompleto`,
+`DadosDisciplinaresIndisponiveis` e `EmpateParaSorteio`. O último só ocorre com os critérios
+aplicáveis conhecidos e iguais. Nenhum sorteio é executado. A ordem alfabética serve apenas
+à apresentação quando a posição oficial está indefinida; o `main` informa essa limitação.
+
+O `main` preserva `classificacao :: [Partida] -> [Linha]` e não lê cartões. A extensão disciplinar
+é usada diretamente em Haskell e nos testes, sem novo CSV obrigatório. Não há base disciplinar
+real versionada: a tabela da CBF publica totais finais, mas eles não foram distribuídos
+artificialmente por rodadas. Os registros dos testes são fictícios e identificados como tais.
 
 ## Campeonato de teste
 
@@ -227,10 +254,10 @@ casos de borda:
 
 ## Testes
 
-São 86 testes em [tests/Testes.hs](tests/Testes.hs). Cada um compara o valor obtido com o esperado,
+São 119 testes em [tests/Testes.hs](tests/Testes.hs). Cada um compara o valor obtido com o esperado,
 conferido à mão, e os testes são separados por camada:
 
-- **Camada 1 (13 testes):** `resultadoPara` para o mandante, o visitante e um time que não jogou
+- **Camada 1 (14 testes):** `resultadoPara` para o mandante, o visitante e um time que não jogou
   (que dá `Nothing`) e para o 0 x 0; `participou`; `golsMarcados` e `golsSofridos`; `times` sem
   repetição e em ordem alfabética, inclusive sem partidas; e a verificação de que o campeonato de
   teste atende aos mínimos (6 times, 5 rodadas, ninguém repetido na rodada, um 0 x 0 e uma
@@ -249,7 +276,10 @@ conferido à mão, e os testes são separados por camada:
   integração do parser com a classificação; a coerência entre `lerCampeonato` e `todosOsErros`; as mensagens de erro; e a
   formatação da tabela, inclusive a tabela vazia.
 
-- **Arquivos CSV (7 testes):** equivalência dos dados controlados, estrutura do dataset real,
+- **Desempates e disciplina (31 testes):** critérios esportivos, confronto incompleto com
+  empate real, cartões conhecidos ou ausentes, registros inválidos, cobertura parcial,
+  rodadas futuras, empate triplo e sorteio pendente.
+- **Arquivos CSV (8 testes):** equivalência dos dados controlados, estrutura do dataset real,
   ausência de erros, tabela final completa comparada com a CBF, gols e classificação parcial.
 
 Os testes de arquivos devem ser executados na raiz do projeto.

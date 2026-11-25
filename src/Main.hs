@@ -15,7 +15,7 @@ module Main (main) where
 
 import Control.Exception (IOException, evaluate, try)
 import Data.List (intercalate)
-import Data.Maybe (fromMaybe, mapMaybe)
+import Data.Maybe (mapMaybe)
 import System.Environment (getArgs)
 
 import Classificacao
@@ -87,7 +87,10 @@ explicarDesempate :: [Partida] -> (Linha, Linha) -> String
 explicarDesempate partidas (acima, abaixo) =
   "* " ++ time acima ++ " fica a frente de " ++ time abaixo
     ++ " (ambos com " ++ show (pontosLinha acima) ++ " pontos): desempate por "
-    ++ fromMaybe "nenhum criterio" (criterioDecisivoCampeonato partidas acima abaixo)
+    ++ case criterioDecisivoCampeonato partidas acima abaixo of
+         Just "ordem alfabetica" -> "ordem alfabetica apenas para apresentacao; posicao oficial indefinida"
+         Just criterio -> criterio
+         Nothing -> "nenhum criterio; posicao oficial indefinida"
 
 -- | Estatísticas da Camada 2. Funcionam também sem partidas, pois
 --   maiorGoleada e mediaGols devolvem Maybe.

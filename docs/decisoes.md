@@ -105,8 +105,9 @@ número 3 escrito direto. Para mudar a regra de pontuação, basta alterar `pont
   o confronto direto só é usado quando exatamente dois clubes empatam em pontos. O programa
   exige um jogo de ida e um de volta e compara o saldo agregado desses jogos. Com três ou mais
   clubes empatados em pontos, o critério é ignorado, evitando uma comparação não transitiva.
-- Cartões e sorteio continuam fora do modelo; usa-se ordem alfabética quando o empate persiste.
-  A fidelidade integral ao regulamento depende de dados adicionais ou de aprovação dessa adaptação.
+- O caminho obrigatório `classificacao` não recebe cartões. A extensão
+  `classificacaoComDisciplina` acrescenta menos vermelhos e depois menos amarelos.
+  Ordem alfabética não é regra oficial nem representa sorteio.
 
 **Funções totais.** Nenhuma função da camada quebra com a lista vazia:
 
@@ -121,8 +122,29 @@ número 3 escrito direto. Para mudar a regra de pontuação, basta alterar `pont
 campeonato, reaproveitando as mesmas funções.
 
 
-- Quando há empate entre três ou mais clubes ou quando o confronto direto não possui os dois jogos (ida e volta), o confronto direto não decide sozinho.
-- A ausência de dados disciplinares (cartões amarelos e vermelhos) retorna `0` sem falhas, e empates sem critério objetivo de desempate são identificados para sorteio/critério final.
+**Disciplina opcional.** `RegistroCartoes` identifica rodada, clube, vermelhos e amarelos
+da partida. Acrescentamos a rodada para que uma tabela parcial não use cartões futuros.
+`totalCartoesVermelhos` e `totalCartoesAmarelos` devolvem `Maybe Int`: ausência, valores
+negativos, rodada inválida, nome em branco, registros repetidos ou estouro da soma produzem
+`Nothing`; zero informado produz `Just 0`. As consultas disciplinares de `Tipos` também
+devolvem `Nothing`, pois `Partida` não contém esses dados.
+
+Antes de ordenar por cartões, a extensão exige um registro para cada partida considerada de
+cada clube do grupo empatado nos quatro primeiros critérios. Registros de outras rodadas são
+ignorados. A disponibilidade é verificada para todo o grupo: comparar apenas os pares com
+cartões e usar o nome nos demais poderia tornar a comparação não transitiva.
+
+`statusDesempate` e a ordenação usam a mesma lista de critérios. Faltando ida ou volta para
+dois clubes empatados, o estado é `ConfrontoDiretoIncompleto`; a disciplina não substitui esse
+critério ausente. Para três ou mais clubes empatados em pontos, o confronto não se aplica.
+`DadosDisciplinaresIndisponiveis` indica cobertura ausente ou inválida. `EmpateParaSorteio`
+exige igualdade com dados completos. A ordem alfabética apenas estabiliza a apresentação,
+sem produzir um resultado de sorteio ou afirmar uma posição oficial.
+
+O `main` mantém a interface obrigatória e o CSV de cinco campos. Não foi adicionada leitura
+disciplinar: a extensão é complementar, com dados fictícios explícitos nos testes. A página
+da CBF publica totais finais de cartões; sem uma base por rodada, esses totais não permitem
+reproduzir a disciplina das classificações intermediárias.
 
 
 ## 5. Camada 3: leitura, validação e saída
@@ -258,8 +280,9 @@ campos vazios, separador sobrando, `+3`, `3.0`, `(3)`, `0x10` e números enormes
 ## 8. Limitações conhecidas
 
 1. **Desempate adaptado.** Confronto direto está implementado para dois clubes empatados em
-   pontos, com ida e volta disponíveis. Cartões e sorteio não fazem parte dos dados; a ordem
-   alfabética é o recurso final. A classificação real de 2024 não depende dessa substituição.
+   pontos, com ida e volta disponíveis. O CSV não contém cartões; a extensão aceita registros
+   por rodada, mas não há base real versionada. A ordem alfabética apenas apresenta os empates
+   pendentes. A classificação real de 2024 não depende dessa substituição.
 2. **Nomes de times são comparados exatamente.** `Flamengo` e `flamengo` são times diferentes. Só
    os espaços das pontas são removidos; não há normalização de maiúsculas, acentos ou espaços
    internos.
@@ -303,12 +326,10 @@ campos vazios, separador sobrando, `+3`, `3.0`, `(3)`, `0x10` e números enormes
   - `Data.List`, `Data.Char`, `Data.Maybe`, `Data.Either`, `Data.Ord` e `Text.Read`, nas camadas;
   - `System.Environment` e `Control.Exception`, só no `main`, para a leitura opcional de arquivo;
   - `System.Exit`, só nos testes, para o código de saída.
-- **Avisos:** nenhum, com `-Wall`. O código também passa por
-  `-Werror -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields
-  -Wredundant-constraints -Wmissing-export-lists`.
-- **Validação pré-merge:** 86 testes aprovados no executável e no `runghc`, além de dez cenários
-  de integração no Ubuntu/WSL. Aplicação e testes compilados com `-Wall -Werror`. A validação
-  não depende do cache temporário do GHCup.
+- **Avisos:** nenhum na compilação de aplicação e testes com `-Wall -Werror`.
+- **Validação final:** 119 testes aprovados no executável e dez cenários de integração no
+  Ubuntu/WSL. Foi necessário `-fforce-recomp` na aplicação para substituir objetos antigos
+  após uma falha de segmentação. Os comandos estão no README; não dependem do cache do GHCup.
 - **Versionamento:** Git e GitHub. As convenções estão em `docs/contribuicao.md`.
 
 ## 10. Histórico de decisões
@@ -327,4 +348,4 @@ campos vazios, separador sobrando, `+3`, `3.0`, `(3)`, `0x10` e números enormes
 | D10 | Saída somente em ASCII | A codificação CP437 derrubava o programa ao imprimir `ã` | Implementada |
 | D11 | Leitura opcional de arquivo pelo `main`, com `try` | Usar `data/teste.txt` sem violar a regra de nenhuma exceção | Implementada |
 | D12 | Lista `criterios` nomeada e `criterioDecisivo` | Fonte única dos critérios; explica cada desempate | Implementada |
-| D13 | Tratar ausência de cartões com zero e sinalizar empate para sorteio | Evitar falhas sem dados disciplinares e deixar explícito o caso de sorteio | Implementada |
+| D13 | Cartões opcionais por rodada, com `Maybe` e estados de desempate | Distinguir ausência de zero, evitar dados futuros e não inventar sorteio | Implementada; sem base disciplinar real |

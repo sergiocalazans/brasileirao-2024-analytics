@@ -43,7 +43,9 @@ module Classificacao
   , mediaGols
   ) where
 
-import Data.List (find, sortBy)
+import Data.Char (isSpace)
+import Data.List (find, nub, sort, sortBy)
+import Data.Maybe (isJust)
 import Data.Ord (Down (..), comparing)
 
 import Tipos
@@ -108,32 +110,68 @@ aproveitamento l
 -- Disciplina e sorteio
 -- ---------------------------------------------------------------------
 
--- | Dados disciplinares complementares de um clube (em base separada,
---   sem alterar o CSV de partidas).
+-- | Cartões de um clube em uma rodada, separados do CSV de partidas.
 data RegistroCartoes = RegistroCartoes
-  { clubeDisciplina :: Time
+  { rodadaDisciplina :: Int
+  , clubeDisciplina :: Time
   , cartoesVermelhos :: Int
   , cartoesAmarelos  :: Int
   } deriving (Show, Eq)
 
--- | Estado explícito de um desempate: resolvido por um critério ou
---   pendente de sorteio quando todos os critérios objetivos empatam.
+-- | Distingue um critério decisivo, informação ausente e sorteio pendente.
 data StatusDesempate
   = ResolvidoPor String
+  | DadosDisciplinaresIndisponiveis
+  | ConfrontoDiretoIncompleto
   | EmpateParaSorteio
   deriving (Show, Eq)
 
--- | Soma de cartões vermelhos de um time (0 quando não há dados).
-totalCartoesVermelhos :: [RegistroCartoes] -> Time -> Int
-totalCartoesVermelhos regs t =
-  foldr (\r acc -> acc + cartoesVermelhos r) 0
-    (filter ((== t) . clubeDisciplina) regs)
+-- | Nothing distingue ausência ou registros inválidos de zero cartões.
+totalCartoesVermelhos :: [RegistroCartoes] -> Time -> Maybe Int
+totalCartoesVermelhos = totalCartoes cartoesVermelhos
 
--- | Soma de cartões amarelos de um time (0 quando não há dados).
-totalCartoesAmarelos :: [RegistroCartoes] -> Time -> Int
-totalCartoesAmarelos regs t =
-  foldr (\r acc -> acc + cartoesAmarelos r) 0
-    (filter ((== t) . clubeDisciplina) regs)
+-- | Soma somente registros válidos, com uma contagem por clube e rodada.
+totalCartoesAmarelos :: [RegistroCartoes] -> Time -> Maybe Int
+totalCartoesAmarelos = totalCartoes cartoesAmarelos
+
+totalCartoes :: (RegistroCartoes -> Int) -> [RegistroCartoes] -> Time -> Maybe Int
+totalCartoes campo regs t
+  | null doTime || all isSpace t = Nothing
+  | not (all valido doTime) || length rodadas /= length (nub rodadas) = Nothing
+  | total > toInteger (maxBound :: Int) = Nothing
+  | otherwise = Just (fromInteger total)
+  where
+    doTime = filter ((== t) . clubeDisciplina) regs
+    rodadas = map rodadaDisciplina doTime
+    valido r = rodadaDisciplina r > 0 && cartoesVermelhos r >= 0 && cartoesAmarelos r >= 0
+    total = sum (map (toInteger . campo) doTime)
+
+-- Exige cobertura das partidas recebidas; registros de outras rodadas não entram.
+cartoesNoCampeonato :: [Partida] -> [RegistroCartoes] -> Time -> Maybe (Int, Int)
+cartoesNoCampeonato partidas regs t
+  | sort (map rodadaDisciplina selecionados) /= sort rodadas = Nothing
+  | otherwise = do
+      vermelhosTotal <- totalCartoesVermelhos selecionados t
+      amarelosTotal <- totalCartoesAmarelos selecionados t
+      return (vermelhosTotal, amarelosTotal)
+  where
+    rodadas = map rodada (filter (participou t) partidas)
+    selecionados = filter (\r -> clubeDisciplina r == t && rodadaDisciplina r `elem` rodadas) regs
+
+-- O grupo inteiro precisa ter dados, para não criar comparações não transitivas.
+disciplinaDisponivel :: [Partida] -> [Linha] -> [RegistroCartoes] -> Linha -> Bool
+disciplinaDisponivel partidas tabela regs a =
+  all (isJust . cartoesNoCampeonato partidas regs . time) empatados
+  where
+    empatados = filter (\b -> all (\(_, comp) -> comp a b == EQ) (take 4 criterios)) tabela
+
+confrontoIncompleto :: [Partida] -> [Linha] -> Linha -> Linha -> Bool
+confrontoIncompleto partidas tabela a b =
+  length (filter ((== pontosLinha a) . pontosLinha) tabela) == 2
+    && (length ida /= 1 || length volta /= 1)
+  where
+    ida = filter (\p -> mandante p == time a && visitante p == time b) partidas
+    volta = filter (\p -> mandante p == time b && visitante p == time a) partidas
 
 -- | Critérios objetivos na ordem do regulamento adaptada com disciplina:
 --   pontos, vitórias, saldo de gols, gols marcados, confronto direto
@@ -142,24 +180,32 @@ totalCartoesAmarelos regs t =
 criteriosObjetivosComDisciplina
   :: [Partida] -> [Linha] -> [RegistroCartoes] -> [(String, Linha -> Linha -> Ordering)]
 criteriosObjetivosComDisciplina partidas tabela regs =
-  [ ("pontos",                      comparing (Down . pontosLinha))
-  , ("vitorias",                    comparing (Down . vitorias))
-  , ("saldo de gols",               comparing (Down . saldo))
-  , ("gols marcados",               comparing (Down . golsPro))
-  , ("confronto direto",            confrontoDireto partidas tabela)
-  , ("menores cartoes vermelhos",   comparing (totalCartoesVermelhos regs . time))
-  , ("menores cartoes amarelos",    comparing (totalCartoesAmarelos regs . time))
+  take 4 criterios ++
+  [ ("confronto direto",            confrontoDireto partidas tabela)
+  , ("menores cartoes vermelhos",   compararCartoes fst)
+  , ("menores cartoes amarelos",    compararCartoes snd)
   ]
+  where
+    compararCartoes campo a b
+      | confrontoIncompleto partidas tabela a b = EQ
+      | not (disciplinaDisponivel partidas tabela regs a) = EQ
+      | otherwise = compare (campo <$> cartoesNoCampeonato partidas regs (time a))
+                            (campo <$> cartoesNoCampeonato partidas regs (time b))
 
--- | Indica se duas linhas empatam em todos os critérios objetivos,
---   exigindo sorteio sem inventar resultado.
+-- | Informa o critério decisivo ou a pendência, sem inventar resultados.
 statusDesempate :: [Partida] -> [RegistroCartoes] -> Linha -> Linha -> StatusDesempate
 statusDesempate partidas regs a b =
-  maybe EmpateParaSorteio ResolvidoPor
+  maybe pendencia ResolvidoPor
     (find (\(_, comp) -> comp a b /= EQ) (criteriosObjetivosComDisciplina partidas tabela regs)
       >>= \(nome, _) -> Just nome)
   where
     tabela = map (linhaDoTime partidas) (times partidas)
+    pendencia
+      | confrontoIncompleto partidas tabela a b = ConfrontoDiretoIncompleto
+      | not (disciplinaDisponivel partidas tabela regs a)
+          || not (isJust (cartoesNoCampeonato partidas regs (time a)))
+          || not (isJust (cartoesNoCampeonato partidas regs (time b))) = DadosDisciplinaresIndisponiveis
+      | otherwise = EmpateParaSorteio
 
 -- | Verdadeiro quando o empate não é decidido por nenhum critério objetivo
 --   e depende de sorteio.
@@ -167,17 +213,15 @@ empateDependeDeSorteio :: [Partida] -> [RegistroCartoes] -> Linha -> Linha -> Bo
 empateDependeDeSorteio partidas regs a b =
   statusDesempate partidas regs a b == EmpateParaSorteio
 
--- | Explica o critério objetivo decisivo; devolve Nothing quando o empate
---   permanece aberto para sorteio.
+-- | Nothing indica empate não resolvido, por falta de dados ou de sorteio.
 criterioDecisivoComDisciplina
   :: [Partida] -> [RegistroCartoes] -> Linha -> Linha -> Maybe String
 criterioDecisivoComDisciplina partidas regs a b =
   case statusDesempate partidas regs a b of
     ResolvidoPor nome -> Just nome
-    EmpateParaSorteio -> Nothing
+    _ -> Nothing
 
--- | Ordena com os critérios objetivos e, quando todos empatam (sorteio),
---   mantém ordenação determinística por nome do clube sem inventar placar.
+-- | Empates não resolvidos usam o nome só para apresentação, nunca como sorteio.
 classificacaoComDisciplina :: [Partida] -> [RegistroCartoes] -> [Linha]
 classificacaoComDisciplina partidas regs =
   sortBy comparar tabela
@@ -185,7 +229,7 @@ classificacaoComDisciplina partidas regs =
     tabela = map (linhaDoTime partidas) (times partidas)
     listaCriterios =
       criteriosObjetivosComDisciplina partidas tabela regs
-        ++ [("sorteio (ordem alfabetica)", comparing time)]
+        ++ [("ordem alfabetica (apresentacao)", comparing time)]
     comparar a b = foldr (\(_, comp) resto -> comp a b <> resto) EQ listaCriterios
 
 -- ---------------------------------------------------------------------
