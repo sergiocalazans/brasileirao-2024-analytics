@@ -6,7 +6,6 @@ da 3ª rodada?"* e *"como um empate em pontos é desempatado?"*, mostra estatís
 rejeita entradas com erros de digitação com uma mensagem útil, sem nunca encerrar com exceção.
 
 > **Ambientes verificados:** GHC **9.10.3** no Windows 11 e no Ubuntu **26.04.1 LTS**, via WSL 2.
-> Para reproduzir a validação pré-merge, use o Ubuntu/WSL; a instalação nativa do Windows precisa de reparo.
 > O playground (play.haskell.org) **não** foi usado. O projeto depende só da biblioteca `base`.
 
 ## Integrantes
