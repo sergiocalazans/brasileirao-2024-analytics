@@ -170,9 +170,13 @@ O mesmo campeonato foi mantido em `Dados.hs`, `data/campeonato-teste.csv` e `dat
 
 ### Dados reais
 
-Também utilizamos as 380 partidas do Brasileirão Série A 2024, registradas em `data/brasileirao-2024.csv`. A origem e a transformação dos dados estão indicadas no README.
+Também utilizamos as 380 partidas do Brasileirão Série A 2024, registradas em `data/brasileirao-2024.csv`, com 20 clubes e 38 rodadas.
 
-Os testes verificam as partidas, a quantidade de clubes e rodadas, os gols marcados e as vinte linhas da classificação final, comparadas com a tabela publicada pela CBF.
+Os resultados foram obtidos do projeto [Brasileirão Dataset](https://github.com/leeofernandes1980/brasileirao-dataset/blob/de69fdc5fa0f2b88c20d0a28fe2b769bdff197b9/dashboard/public/data/json/partidas_resumo.json), que identifica seus registros de 2024 como provenientes do Sofascore (consulta em 25/11/2026). Selecionamos a temporada de 2024, ordenamos as partidas por rodada e identificador e mantivemos apenas os cinco campos necessários.
+
+A tabela parcial considera o número da rodada, e não a data em que cada jogo aconteceu. Assim, partidas adiadas permanecem na rodada à qual pertencem.
+
+Os testes verificam as partidas, a quantidade de clubes e rodadas, os gols marcados e as vinte linhas da classificação final, comparadas com a [tabela publicada pela CBF](https://www.cbf.com.br/futebol-brasileiro/tabelas/campeonato-brasileiro/serie-a/2024). O resultado coincide com a tabela oficial, com o Botafogo campeão com 79 pontos e um total de 929 gols no campeonato.
 
 ## 6. Testes e ambiente de execução
 
@@ -180,7 +184,7 @@ Os **119 testes** estão organizados em cinco grupos: Camada 1 (14), Camada 2 (2
 
 Os testes cobrem as funções obrigatórias, os desempates, os construtores de `Erro`, entradas inválidas, listas vazias e os dois campeonatos utilizados no projeto.
 
-Na revisão de 25/11/2026, a aplicação e os testes foram compilados com **GHC 9.10.3 no Ubuntu 26.04.1 LTS (WSL 2)**, usando `-Wall -Werror`. Os 119 testes foram aprovados, assim como dez cenários de integração. Esses são os resultados registrados na revisão; os comandos para reproduzi-los estão no README.
+Na revisão de 25/11/2026, a aplicação e os testes foram compilados com **GHC 9.10.3 no Ubuntu 26.04.1 LTS (WSL 2)**, usando `-Wall -Werror`. Os 119 testes foram aprovados. Os comandos para reproduzir essa validação estão no README.
 
 Na instalação nativa do Windows, encontramos problemas com o Clang. Também ocorreu uma falha ao reaproveitar arquivos de compilação antigos, resolvida com `-fforce-recomp`. Por isso, recomendamos recompilar os módulos ao alternar entre ambientes.
 
