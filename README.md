@@ -4,7 +4,7 @@ Este projeto foi desenvolvido para o PjBL 2 da disciplina de **Programação Ló
 
 Os times são ordenados por pontos, vitórias, saldo de gols, gols marcados e confronto direto. O programa pode usar um campeonato de teste, definido no próprio código, ou ler os resultados de um arquivo, como os da Série A de 2024.
 
-**Ambiente utilizado:** GHC instalado localmente (o playground online não foi utilizado). O projeto foi testado com o GHC 9.10.3, no Ubuntu pelo WSL 2, e com o GHC 9.4.7, no Linux. Apenas a biblioteca padrão `base` é utilizada.
+**Ambiente utilizado:** GHC instalado localmente (o playground online não foi utilizado). O projeto foi testado com o GHC 9.10.3, no Ubuntu pelo WSL 2. Apenas a biblioteca padrão `base` é utilizada.
 
 ## Integrantes
 

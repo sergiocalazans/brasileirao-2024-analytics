@@ -184,7 +184,7 @@ Os **119 testes** estão organizados em cinco grupos: Camada 1 (14), Camada 2 (2
 
 Os testes cobrem as funções obrigatórias, os desempates, os construtores de `Erro`, entradas inválidas, listas vazias e os dois campeonatos utilizados no projeto.
 
-Na revisão de 25/11/2026, a aplicação e os testes foram compilados com **GHC 9.10.3 no Ubuntu 26.04.1 LTS (WSL 2)**, usando `-Wall -Werror`. Os 119 testes foram aprovados. O projeto também foi compilado e testado com o GHC 9.4.7, no Linux, com o mesmo resultado. Os comandos para reproduzir essa validação estão no README.
+Na revisão de 25/11/2026, a aplicação e os testes foram compilados com **GHC 9.10.3 no Ubuntu 26.04.1 LTS (WSL 2)**, usando `-Wall -Werror`. Os 119 testes foram aprovados. Os comandos para reproduzir essa validação estão no README.
 
 Na instalação nativa do Windows, encontramos problemas com o Clang. Também ocorreu uma falha ao reaproveitar arquivos de compilação antigos, resolvida com `-fforce-recomp`. Por isso, recomendamos recompilar os módulos ao alternar entre ambientes.
 
